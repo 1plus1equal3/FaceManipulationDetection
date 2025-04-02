@@ -1,0 +1,11 @@
+{
+    "model":
+    {
+        "epoch": 100,
+        "lr": 0.001
+    },
+    "dataset":
+    {
+        "batch_size": 16
+    }
+}
