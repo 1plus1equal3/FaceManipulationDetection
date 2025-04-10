@@ -13,11 +13,21 @@ from src.network.backbone_gan import *
 from src.network.u2net_gan import *
 
 class FMD(nn.Module):
-    def __init__(self, in_channels=3):
+    def __init__(self, device, in_channels=3):
         super(FMD, self).__init__()
+        
+        self.device = device
         
         self.u2net_gan = init_u2net_gan()
         self.disc = init_discriminator()
+        
+        # set training mode
+        self.u2net_gan.train()
+        self.disc.train()
+        
+        # use_gpu
+        self.u2net_gan.to(self.device)
+        self.disc.to(self.device)
         
         # define for training
         # optim
@@ -33,12 +43,12 @@ class FMD(nn.Module):
         
     def forward(self):
         # get output of u2net-gan
-        self.rec_img, self.d0, self.d1, self.d2, self.d3, self.d4, self.d6 = self.u2net_gan(input)
+        self.rec_img, self.d0, self.d1, self.d2, self.d3, self.d4, self.d6 = self.u2net_gan(self.inputs)
         
     def set_input(self, inputs, labels, input_is_real):
-        self.inputs = inputs
-        self.labels = labels
-        self.input_is_real = input_is_real
+        self.inputs = inputs.to(self.device)
+        self.labels = labels.to(self.device)
+        self.input_is_real = input_is_real.to(self.device)
     
     def get_label_from_input(self, input, input_is_real):
         if input_is_real:
@@ -69,8 +79,8 @@ class FMD(nn.Module):
         
         loss_seg = loss_d0 + loss_d1 + loss_d2 + loss_d3 + loss_d4 + loss_d6
         
-        # gan loss
-        loss_gen = self.criterion_rec(self.disc(self.rec_img), torch.ones_like())
+        # gan loss (D(G(x)) -> 1)
+        loss_gen = self.criterion_rec(self.disc(self.rec_img), torch.ones_like(self.disc(self.rec_img)))
         
         loss_u2net_gan =loss_seg + loss_gen
         loss_u2net_gan.backward()
@@ -82,10 +92,11 @@ class FMD(nn.Module):
         """
 
         # dis criminator loss
-        rec_label = self.get_label_from_input(self.rec_img, self.input_is_real)
+        pred_rec = self.disc(self.rec_img.detach())      # pass rec into discriminator
+        
+        rec_label = self.get_label_from_input(pred_rec, self.input_is_real)
         input_label = self.get_label_from_input(self.inputs, True)
         
-        pred_rec = self.disc(self.rec_img.detach())      # pass rec into discriminator
         loss_dis = (self.criterion_gan(pred_rec, rec_label) + self.criterion_gan(self.inputs, input_label)) * 0.5
         
         loss_dis.backward()
