@@ -1,6 +1,7 @@
 import os
 import sys
 import cv2
+import numpy as np
 import matplotlib.pyplot as plt
 
 sys.path.append(os.getcwd())
@@ -26,24 +27,29 @@ class GanDataset(Dataset):
         self.trans = trans
 
     def __len__(self):
-        return len(self.real_image_paths)
+        # combine real and fake for training
+        return len(self.fake_image_paths) + len(self.real_image_paths)
 
     def __getitem__(self, idx):
-        real_image = cv2.imread(self.real_image_paths[idx])
-        real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
+        if idx < len(self.real_image_paths):
+            image = cv2.imread(self.real_image_paths[idx])
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            
+            masked_image = np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
+            masked_image = np.expand_dims(masked_image, axis=2)  # (H, W, 1)
+            input_is_real = True
+        else:
+            image = cv2.imread(self.fake_image_paths[idx])
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        fake_image = cv2.imread(self.fake_image_paths[idx])
-        fake_image = cv2.cvtColor(fake_image, cv2.COLOR_BGR2RGB)
-
-        masked_fake_image = cv2.imread(self.masked_fake_image_paths[idx], cv2.IMREAD_GRAYSCALE)
+            masked_image = cv2.imread(self.masked_fake_image_paths[idx - len(self.real_image_paths)], cv2.IMREAD_GRAYSCALE)
+            input_is_real = False
 
         if self.trans:
-            real_image = self.trans(real_image)
-            fake_image = self.trans(fake_image)
-            masked_fake_image = self.trans(masked_fake_image)
-            masked_real_image = torch.zeros_like(masked_fake_image, dtype=real_image.dtype)
+            image = self.trans(image)
+            masked_image = self.trans(masked_image)
 
-        return real_image, masked_real_image, fake_image, masked_fake_image
+        return image, masked_image, input_is_real
 
 def get_data_paths(dataset_path, masked_path):
     # real + fake + mask image paths
@@ -70,12 +76,19 @@ def get_dataloader(mode='train'):
     
     if mode == 'train':
         train_dataset = GanDataset(
+            # train with small part of data for testing
+            real_image_paths=real_image_paths[:2000],
+            fake_image_paths=fake_image_paths[:20000],
+            masked_fake_image_paths=mask_image_paths,
+            trans=trans
+        )
+        
+        train_dataloader = DataLoader(train_dataset, batch_size=16, shuffle=False)
+        return train_dataloader
+    elif mode == 'test':
+        test_loader = GanDataset(
             real_image_paths=real_image_paths,
             fake_image_paths=fake_image_paths,
             masked_fake_image_paths=mask_image_paths,
             trans=trans
         )
-        
-    train_dataloader = DataLoader(train_dataset, batch_size=16, shuffle=False)
-    
-    return train_dataloader
