@@ -5,7 +5,7 @@ def init_discriminator():
     return Discriminator(ConvDownBlock, in_channels=3)
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, down_sample=True):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, down_sample=True, act='leaky_relu'):
         """ Convolutional Block of GAN Encoder
 
         Args:
@@ -14,16 +14,21 @@ class ConvBlock(nn.Module):
         """
         super(ConvBlock, self).__init__()
         self.down_sample = down_sample
+        self.act = act
+        
         if self.down_sample:
             self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
         else:
             self.conv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding)
             
         self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU()
-        
+        if self.act == 'leaky_relu':
+            self.act = nn.LeakyReLU(0.2, inplace=True)
+        elif self.act == 'tanh':
+            self.act = nn.Tanh()
+            
     def forward(self, x):
-        return self.relu(self.bn(self.conv(x)))
+        return self.act(self.bn(self.conv(x)))
     
 class Discriminator(nn.Module):
     def __init__(self, ConvDownBlock, in_channels=3):
