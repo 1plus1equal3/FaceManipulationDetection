@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 sys.path.append(os.getcwd())
 
@@ -16,7 +17,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def load_config(config_path):
     with open(config_path, 'r') as f:
-        config = f.read()
+        config = json.load(f)
     return config
 
 config = load_config('src/config.json')
@@ -26,10 +27,10 @@ def main():
     test_loader = get_dataloader(mode='test')
     
     # define model
-    fmd = FMD()
+    fmd = FMD(device=device)
     
     epochs = config['model']['epoch']
-    for epoch in epochs:
+    for epoch in range(epochs):
         total_loss_seg = 0.0
         total_loss_gen = 0.0
         total_loss_D_fake = 0.0
@@ -45,8 +46,8 @@ def main():
             total_loss_D_fake += loss_D_fake
             total_loss_D_real += loss_D_real
             
-        if (epoch + 1) % 10 == 0:
-            print(f"loss_seg: {total_loss_seg/len(train_loader):.4f}, loss_gen: {total_loss_gen/len(train_loader):.4f}, loss_D_fake: {total_loss_D_fake/len(total_loss_D_fake):.4f}, loss_D_real: {total_loss_D_real/len(train_loader):.4f}")
+        if (epoch + 1) % 10 == 0 or epoch == 0:
+            print(f"loss_seg: {total_loss_seg/len(train_loader):.4f}, loss_gen: {total_loss_gen/len(train_loader):.4f}, loss_D_fake: {total_loss_D_fake/len(train_loader):.4f}, loss_D_real: {total_loss_D_real/len(train_loader):.4f}")
             
             # visualize some sample in test loader
             with torch.no_grad():
@@ -54,5 +55,7 @@ def main():
                     fmd.set_input(input, true_mask, input_is_real)
                     rec_img, pred_mask, _, _, _, _, _ = fmd()
                     
-                    visualize_results(input, rec_img, true_mask, pred_mask)
+                    visualize_results(input, rec_img, true_mask, pred_mask, epoch)
                     break
+if __name__ == '__main__':
+    main()
