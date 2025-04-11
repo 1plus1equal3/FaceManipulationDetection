@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-def visualize_results(true_images, rec_images, true_masks, pred_masks):
+def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch):
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
     true_masks = true_masks.cpu().numpy()
@@ -14,6 +14,8 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks):
     for i in range(16):
         true_image = np.transpose(true_images[i], (1, 2, 0))
         rec_image = np.transpose(rec_images[i], (1, 2, 0))
+        # make sure that rec img in range(0, 1) instead (-1, 1)
+        rec_image = (rec_image + 1) / 2
         true_mask = np.transpose(true_masks[i], (1, 2, 0))
         pred_mask = np.transpose(pred_masks[i], (1, 2, 0))
         
@@ -34,4 +36,4 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks):
         axes[4*i+3].axis("off")
     
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f'results/epoch_{epoch}.png')
