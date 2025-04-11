@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 
-dataset_path = '/datasets'
+dataset_path = 'datasets'
 
 # transform
 trans = transforms.Compose([
