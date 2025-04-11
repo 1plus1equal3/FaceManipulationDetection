@@ -55,7 +55,7 @@ class U2Net_GAN(nn.Module):
         self.stage2d = RSU6(256,32,64)
         self.res_from_decoder_2 = ConvBlock(128, 64, kernel_size=4, stride=2, padding=1, down_sample=False)
         self.stage1d = RSU7(128,16,64)
-        self.res_from_decoder_1 = ConvBlock(64, 3, kernel_size=4, stride=2, padding=1, down_sample=False)
+        self.res_from_decoder_1 = ConvBlock(64, 3, kernel_size=4, stride=2, padding=1, down_sample=False, act='tanh')
 
         self.side1 = nn.Conv2d(64,out_ch,3,padding=1)
         self.side2 = nn.Conv2d(64,out_ch,3,padding=1)
