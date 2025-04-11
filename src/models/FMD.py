@@ -44,6 +44,8 @@ class FMD(nn.Module):
     def forward(self):
         # get output of u2net-gan
         self.rec_img, self.d0, self.d1, self.d2, self.d3, self.d4, self.d6 = self.u2net_gan(self.inputs)
+
+        return self.rec_img, self.d0, self.d1, self.d2, self.d3, self.d4, self.d6
         
     def set_input(self, inputs, labels, input_is_real):
         self.inputs = inputs.to(self.device)
