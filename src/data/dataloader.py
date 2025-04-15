@@ -65,25 +65,38 @@ class GANDataset_V2(Dataset):
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
+        # self.label_paths is not None => fake_image
         if self.label_paths:
+            # read mask image
             label_path = self.label_paths[idx]
             label = cv2.imread(label_path)
+            
+            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake', 'real')
+            real_image = cv2.imread(real_image_path)
+            
+            if self.trans:
+                image = trans(image)
+                label = trans(label)
+                real_image = trans(real_image)
+        
+            return image, label, real_image
+        # real_image
         else:
             label =  np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
             label = np.expand_dims(label, axis=2)         # (H, W, 1)
         
-        if self.trans:
-            image = trans(image)
-            label = trans(label)
+            if self.trans:
+                image = trans(image)
+                label = trans(label)
             
-        return image, label
+            return image, label
     
 
 def get_data_paths(dataset_path):
     # real + fake + mask image paths
-    real_image_folder_path = os.path.join(dataset_path, 'real-20250326T031740Z-001/real')
-    fake_image_folder_path = os.path.join(dataset_path, 'fake_attrGAN/fake_attrGAN')
-    mask_image_folder_path = os.path.join(dataset_path, 'mask')
+    real_image_folder_path = os.path.join(dataset_path, 'reals')
+    fake_image_folder_path = os.path.join(dataset_path, 'fakes')
+    mask_image_folder_path = os.path.join(dataset_path, 'masks')
 
     # get real image paths
     real_image_paths = sorted([os.path.join(real_image_folder_path, real_image_path) for real_image_path in os.listdir(real_image_folder_path)])
