@@ -33,25 +33,18 @@ def main():
     
     # phase 1: train with real image
     epochs = config['model']['epoch']
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         total_loss_seg = 0.0
-        total_loss_gen = 0.0
-        total_loss_D_fake = 0.0
-        total_loss_D_real = 0.0
-        total_loss_rec = 0.0
         
-        for (input, true_mask) in tqdm(train_real_loader):
+        for (input, true_mask) in (train_real_loader):
             fmd.set_input(input, true_mask)
-            loss_seg, loss_gen, _, loss_D_fake, loss_D_real = fmd.optimize_parameters()
+            loss_seg = fmd.optimize_segmentation()
             
             # total loss
             total_loss_seg += loss_seg
-            total_loss_gen += loss_gen
-            total_loss_D_fake += loss_D_fake
-            total_loss_D_real += loss_D_real
             
         if (epoch + 1) % 10 == 0 or epoch == 0:
-            print(f"loss_seg: {total_loss_seg/len(train_real_loader):.4f}, loss_gen: {total_loss_gen/len(train_real_loader):.4f}, loss_rec: {total_loss_rec/len(train_real_loader):.4f}, loss_D_fake: {total_loss_D_fake/len(train_real_loader):.4f}, loss_D_real: {total_loss_D_real/len(train_real_loader):.4f}")
+            print(f"loss_seg: {total_loss_seg/len(train_real_loader):.4f}")
             
             # save checkpoint
             if not os.path.exists('checkpoints'):
@@ -71,14 +64,14 @@ def main():
                 
     # phase 2: train with fake image
     epochs = config['model']['epoch']
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs)):
         total_loss_seg = 0.0
         total_loss_gen = 0.0
         total_loss_D_fake = 0.0
         total_loss_D_real = 0.0
         total_loss_rec = 0.0
         
-        for (input, true_mask, real_image) in tqdm(train_fake_loader):
+        for (input, true_mask, real_image) in (train_fake_loader):
             fmd.set_input(input, true_mask, real_image)
             loss_seg, loss_gen, loss_rec, loss_D_fake, loss_D_real = fmd.optimize_parameters()
             
@@ -104,7 +97,7 @@ def main():
                     fmd.set_input(input, true_mask)
                     rec_img, pred_mask, _, _, _, _, _ = fmd()
                     
-                    visualize_results(input, rec_img, true_mask, pred_mask, epoch)
+                    visualize_results(input, rec_img, true_mask, pred_mask, epoch+1)
                     break
                 
 
