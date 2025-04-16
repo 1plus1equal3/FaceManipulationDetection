@@ -49,13 +49,13 @@ class U2Net_GAN(nn.Module):
         # decoder
         # self.stage5d = RSU4F(1024,256,512)
         self.stage4d = RSU4(1024,128,256)
-        self.res_from_decoder_4 = ConvBlock(512, 256, kernel_size=4, stride=2, padding=1, down_sample=False)
+        self.res_from_decoder_4 = ConvBlock(1024, 256, kernel_size=4, stride=2, padding=1, down_sample=False)
         self.stage3d = RSU5(512,64,128)
-        self.res_from_decoder_3 = ConvBlock(256, 128, kernel_size=4, stride=2, padding=1, down_sample=False)
+        self.res_from_decoder_3 = ConvBlock(512, 128, kernel_size=4, stride=2, padding=1, down_sample=False)
         self.stage2d = RSU6(256,32,64)
-        self.res_from_decoder_2 = ConvBlock(128, 64, kernel_size=4, stride=2, padding=1, down_sample=False)
+        self.res_from_decoder_2 = ConvBlock(256, 64, kernel_size=4, stride=2, padding=1, down_sample=False)
         self.stage1d = RSU7(128,16,64)
-        self.res_from_decoder_1 = ConvBlock(64, 3, kernel_size=4, stride=2, padding=1, down_sample=False, act='tanh')
+        self.res_from_decoder_1 = ConvBlock(128, 3, kernel_size=4, stride=2, padding=1, down_sample=False, act='tanh')
 
         self.side1 = nn.Conv2d(64,out_ch,3,padding=1)
         self.side2 = nn.Conv2d(64,out_ch,3,padding=1)
@@ -112,20 +112,20 @@ class U2Net_GAN(nn.Module):
         # hx5d = self.stage5d(torch.cat((hx6up,hx5),1))
         # hx5dup = _upsample_like(hx5d,hx4)
 
-        decoder_4 = self.res_from_decoder_4(hx6 + bottle_neck)
-        hx4d = self.stage4d(torch.cat((hx6up,hx4),1))
+        decoder_4 = self.res_from_decoder_4(torch.cat((hx6, bottle_neck), 1))
+        hx4d = self.stage4d(torch.cat((hx6up, hx4), 1))
         hx4dup = _upsample_like(hx4d,hx3)
 
-        decoder_3 = self.res_from_decoder_3(hx4d + decoder_4)
-        hx3d = self.stage3d(torch.cat((hx4dup,hx3),1))
+        decoder_3 = self.res_from_decoder_3(torch.cat((hx4d, decoder_4), 1))
+        hx3d = self.stage3d(torch.cat((hx4dup, hx3), 1))
         hx3dup = _upsample_like(hx3d,hx2)
 
-        decoder_2 = self.res_from_decoder_2(hx3d + decoder_3)
-        hx2d = self.stage2d(torch.cat((hx3dup,hx2),1))
+        decoder_2 = self.res_from_decoder_2(torch.cat((hx3d, decoder_3), 1))
+        hx2d = self.stage2d(torch.cat((hx3dup, hx2), 1))
         hx2dup = _upsample_like(hx2d,hx1)
 
-        decoder_1 = self.res_from_decoder_1(hx2d + decoder_2)
-        hx1d = self.stage1d(torch.cat((hx2dup,hx1),1))
+        decoder_1 = self.res_from_decoder_1(torch.cat((hx2d, decoder_2), 1))
+        hx1d = self.stage1d(torch.cat((hx2dup, hx1), 1))
         # reconstruction image
         
         
@@ -150,3 +150,6 @@ class U2Net_GAN(nn.Module):
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d6),1))
 
         return decoder_1, F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d6)
+    
+u2net_gan = U2Net_GAN()
+summary(u2net_gan, (3, 256, 256))

@@ -49,12 +49,54 @@ class GanDataset(Dataset):
             masked_image = self.trans(masked_image)
 
         return image, masked_image, input_is_real
+    
+    
+class GANDataset_V2(Dataset):
+    def __init__(self, image_paths, label_paths=None, trans=None):
+        self.image_paths = image_paths
+        self.trans = trans
+        self.label_paths = label_paths
+    
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        image = cv2.imread(image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # self.label_paths is not None => fake_image
+        if self.label_paths:
+            # read mask image
+            label_path = self.label_paths[idx]
+            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
+            
+            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
+            real_image = cv2.imread(real_image_path)
+            
+            if self.trans:
+                image = trans(image)
+                label = trans(label)
+                real_image = trans(real_image)
+        
+            return image, label, real_image
+        # real_image
+        else:
+            label =  np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
+            label = np.expand_dims(label, axis=2)         # (H, W, 1)
+        
+            if self.trans:
+                image = trans(image)
+                label = trans(label)
+            
+            return image, label
+    
 
 def get_data_paths(dataset_path):
     # real + fake + mask image paths
-    real_image_folder_path = os.path.join(dataset_path, 'real-20250326T031740Z-001/real')
-    fake_image_folder_path = os.path.join(dataset_path, 'fake_attrGAN/fake_attrGAN')
-    mask_image_folder_path = os.path.join(dataset_path, 'mask')
+    real_image_folder_path = os.path.join(dataset_path, 'reals')
+    fake_image_folder_path = os.path.join(dataset_path, 'fakes')
+    mask_image_folder_path = os.path.join(dataset_path, 'masks')
 
     # get real image paths
     real_image_paths = sorted([os.path.join(real_image_folder_path, real_image_path) for real_image_path in os.listdir(real_image_folder_path)])
@@ -67,27 +109,43 @@ def get_data_paths(dataset_path):
     return real_image_paths, fake_image_paths, mask_image_paths
     
 
-def get_dataloader(mode='train'):
+def get_dataloader(mode='train', is_real=False):
     real_image_paths, fake_image_paths, mask_image_paths = get_data_paths(dataset_path=dataset_path)
     
     if mode == 'train':
-        train_dataset = GanDataset(
-            # train with small part of data for testing
-            real_image_paths=real_image_paths[:2000],
-            fake_image_paths=fake_image_paths[:20000],
-            masked_fake_image_paths=mask_image_paths,
-            trans=trans
-        )
+        if is_real:
+            train_real_dataset = GANDataset_V2(
+                # train with small part of data for testing
+                image_paths=real_image_paths[:2000],
+                trans=trans
+            )
         
-        train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=False)
-        return train_dataloader
+            train_real_loader = DataLoader(train_real_dataset, batch_size=32, shuffle=True)
+            return train_real_loader
+        else:
+            train_fake_dataset = GANDataset_V2(
+                image_paths=fake_image_paths[:20000],
+                label_paths=mask_image_paths[:20000],
+                trans=trans
+            )
+            
+            train_fake_loader = DataLoader(train_fake_dataset, batch_size=32,shuffle=True)
+            return train_fake_loader
     elif mode == 'test':
-        test_dataset = GanDataset(
-            real_image_paths=real_image_paths[3000:3100],
-            fake_image_paths=fake_image_paths[30000:31000],
-            masked_fake_image_paths=mask_image_paths,
-            trans=trans
-        )
-        
-        test_loader = DataLoader(test_dataset, batch_size=16, shuffle=True)
-        return test_loader
+        if is_real:
+            test_real_dataset = GANDataset_V2(
+                image_paths=real_image_paths[3000:3100],
+                trans=trans
+            )
+            
+            test_real_loader = DataLoader(test_real_dataset, batch_size=16, shuffle=True)
+            return test_real_loader
+        else:
+            test_fake_dataset = GANDataset_V2(
+                image_paths=fake_image_paths[30000:31000],
+                label_paths=mask_image_paths[30000:31000],
+                trans=trans
+            )
+            
+            test_fake_loader = DataLoader(test_fake_dataset, batch_size=32, shuffle=False)
+            return test_fake_loader
