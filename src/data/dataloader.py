@@ -69,9 +69,9 @@ class GANDataset_V2(Dataset):
         if self.label_paths:
             # read mask image
             label_path = self.label_paths[idx]
-            label = cv2.imread(label_path)
+            label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
             
-            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake', 'real')
+            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
             real_image = cv2.imread(real_image_path)
             
             if self.trans:
@@ -134,7 +134,7 @@ def get_dataloader(mode='train', is_real=False):
     elif mode == 'test':
         if is_real:
             test_real_dataset = GANDataset_V2(
-                real_image_paths=real_image_paths[3000:3100],
+                image_paths=real_image_paths[3000:3100],
                 trans=trans
             )
             
