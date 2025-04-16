@@ -93,8 +93,8 @@ def main():
             
             # visualize some sample in test loader
             with torch.no_grad():
-                for input, true_mask in test_fake_loader:
-                    fmd.set_input(input, true_mask)
+                for input, true_mask, real_image in test_fake_loader:
+                    fmd.set_input(input, true_mask, real_image)
                     rec_img, pred_mask, _, _, _, _, _ = fmd()
                     
                     visualize_results(input, rec_img, true_mask, pred_mask, epoch+1)
