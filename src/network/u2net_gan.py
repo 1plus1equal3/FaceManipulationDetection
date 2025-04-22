@@ -4,6 +4,7 @@ sys.path.append(os.getcwd())
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchsummary import summary
 from src.network.backbone_u2_net import *
 from src.network.backbone_gan import *
@@ -126,8 +127,6 @@ class U2Net_GAN(nn.Module):
 
         decoder_1 = self.res_from_decoder_1(torch.cat((hx2d, decoder_2), 1))
         hx1d = self.stage1d(torch.cat((hx2dup, hx1), 1))
-        # reconstruction image
-        
         
         # side output
         d1 = self.side1(hx1d)
@@ -150,6 +149,3 @@ class U2Net_GAN(nn.Module):
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d6),1))
 
         return decoder_1, F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d6)
-    
-u2net_gan = U2Net_GAN()
-summary(u2net_gan, (3, 256, 256))
