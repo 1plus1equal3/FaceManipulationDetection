@@ -32,16 +32,16 @@ class FMD(nn.Module):
         
         # define for training
         # optim
-        self.optimizer_u2net_gan = optim.Adam(self.u2net_gan.parameters(), lr=0.001, betas=(0.5, 0.999))
-        self.optimizer_disc = optim.Adam(self.disc.parameters(), lr=0.001, betas=(0.5, 0.999))
+        self.optimizer_u2net_gan = optim.Adam(self.u2net_gan.parameters(), lr=0.0003, betas=(0.5, 0.999))
+        self.optimizer_disc = optim.Adam(self.disc.parameters(), lr=0.0001, betas=(0.5, 0.999))
         
         # scheduler
         
         # loss function
         self.criterion_segment = nn.BCELoss(size_average=True)
         self.criterion_disc = nn.MSELoss()
-        self.criterion_gan = VGG19PerceptureLoss()
-        self.criterion_rec = nn.L1Loss()
+        self.criterion_gan = nn.L1Loss()
+        self.criterion_rec = VGG19PerceptureLoss()
         
     def forward(self):
         # get output of u2net-gan
@@ -52,8 +52,8 @@ class FMD(nn.Module):
     def set_input(self, inputs, labels, real_images=None, input_is_real=None):
         self.inputs = inputs.to(self.device)
         self.labels = labels.to(self.device)
-        self.real_images = real_images
-        self.input_is_real = input_is_real.to(self.device)
+        self.real_images = real_images.to(self.device) if real_images is not None else real_images
+        self.input_is_real = input_is_real
     
     def get_label_from_input(self, input, input_is_real):
         if input_is_real:
@@ -70,7 +70,7 @@ class FMD(nn.Module):
                     param.requires_grad = requires_grad
             
     
-    def backward_u2net_gan(self):
+    def backward_u2net_gan(self, lambda_seg=0.1):
         """ calculate loss for u2net-gan
         """
         
@@ -84,7 +84,7 @@ class FMD(nn.Module):
         
         loss_seg = loss_d0 + loss_d1 + loss_d2 + loss_d3 + loss_d4 + loss_d6
         
-        # gan loss (D(G(x)) -> 1)
+        # gan loss (D(G(x) -> 1)
         loss_gen = self.criterion_gan(self.disc(self.rec_img), torch.ones_like(self.disc(self.rec_img)))
         
         # reconstruct loss
@@ -94,10 +94,10 @@ class FMD(nn.Module):
             loss_rec = 0
         
         # conbine loss u2net-gan
-        loss_u2net_gan =loss_seg + loss_gen + loss_rec
+        loss_u2net_gan = loss_seg * lambda_seg + loss_gen + loss_rec
         loss_u2net_gan.backward()
         
-        return loss_seg, loss_gen, loss_rec
+        return loss_seg * lambda_seg, loss_gen, loss_rec
     
     def backward_disc(self):
         """ calculate loss for discriminator
