@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torchsummary import summary
-from src.network.modules import CBAM, FrequencyModule, TextureModule
+from src.network.modules import CBAM, FrequencyModule, TextureModule, AttentionGate
 from src.network.backbone_u2_net import *
 
 ## upsample tensor 'src' to have the same spatial size with tensor 'tar'
@@ -35,6 +35,8 @@ class U2NetGanV2(nn.Module):
         self.cbam1 = CBAM(64)
         # Texture Module
         self.text1 = TextureModule(64)
+        # Attention Gate
+        self.attn_gate_1 = AttentionGate(64)
         self.pool12 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
         
         
@@ -43,6 +45,8 @@ class U2NetGanV2(nn.Module):
         self.cbam2 = CBAM(128)
         # Texture Module
         self.text2 = TextureModule(128)
+        # Attention Gate
+        self.attn_gate_2 = AttentionGate(128)
         self.pool23 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
 
@@ -51,6 +55,8 @@ class U2NetGanV2(nn.Module):
         self.cbam3 = CBAM(256)
         # Texture Module
         self.text3 = TextureModule(256)
+        # Attention Gate
+        self.attn_gate_3 = AttentionGate(256)
         self.pool34 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage4 = RSU4(256,128,512)
@@ -92,21 +98,21 @@ class U2NetGanV2(nn.Module):
         hx1 = self.stage1(hx)       # RSU Block
         hx1 = self.cbam1(hx1)       # CBAM Block
         hx1 = self.text1(hx1)       # Texture Block
-        hx1 = hx1 * frequency1      # Frequency module
+        hx1 = self.attn_gate_1(hx1, frequency1)      # Attention Gate
         hx = self.pool12(hx1)
 
         #stage 2
         hx2 = self.stage2(hx)       # RSU Block
         hx2 = self.cbam2(hx2)       # CBAM Block
         hx2 = self.text2(hx2)       # Texture Block
-        hx2 = hx2 * frequency2      # Frequency module
+        hx2 = self.attn_gate_2(hx2, frequency2)      # Attention Gate
         hx = self.pool23(hx2)
 
         #stage 3
         hx3 = self.stage3(hx)       # RSU Block
         hx3 = self.cbam3(hx3)       # CBAM Block
         hx3 = self.text3(hx3)       # Texture Block
-        hx3 = hx3 * frequency3      # Frequency module
+        hx3 = self.attn_gate_3(hx3, frequency3)      # Attention Gate
         hx = self.pool34(hx3)
 
         #stage 4
