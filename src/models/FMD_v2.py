@@ -19,29 +19,29 @@ class FMD_v2(nn.Module):
         self.device = device
         
         # init model
-        self.u2net_gan = init_u2net_gan_v2()
+        self.u2net_gan_v2 = init_u2net_gan_v2()
         
         # set training mode
-        self.u2net_gan.train()
+        self.u2net_gan_v2.train()
         
         # use_gpu
-        self.u2net_gan.to(self.device)
+        self.u2net_gan_v2.to(self.device)
         
         # define for training
         # optim
-        self.optimizer_u2net_gan = optim.Adam(self.u2net_gan.parameters(), lr=0.0003, betas=(0.5, 0.999))
+        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=0.0003, betas=(0.5, 0.999))
         
         # scheduler
         
         # loss function
-        self.criterion_segment = nn.BCELoss(size_average=True)
+        self.criterion_segment = nn.L1Loss()
         # self.criterion_rec = VGG19PerceptureLoss()
         
     def forward(self):
         # get output of u2net-gan
-        self.d0, self.d1, self.d2, self.d3, self.d4, self.d6 = self.u2net_gan(self.inputs)
+        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6 = self.u2net_gan_v2(self.inputs)
 
-        return self.d0, self.d1, self.d2, self.d3, self.d4, self.d6
+        return self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6
         
     def set_input(self, inputs, labels, real_images=None, input_is_real=None):
         self.inputs = inputs.to(self.device)
@@ -81,8 +81,12 @@ class FMD_v2(nn.Module):
         # pass data into network
         self.forward()
         # train u2net-gan
-        self.optimizer_u2net_gan.zero_grad()
-        loss_seg = self.backward_u2net_gan()
-        self.optimizer_u2net_gan.step()
+        self.optimizer_u2net_gan_v2.zero_grad()
+        loss_seg = self.backward_u2net_gan_v2()
+        self.optimizer_u2net_gan_v2.step()
         
         return loss_seg
+    
+    def calculate_loss(self, pred, gt):
+        loss = self.criterion_segment(pred, gt)
+        return loss
