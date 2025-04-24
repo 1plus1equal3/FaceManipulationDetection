@@ -62,9 +62,9 @@ def main():
                         visualize_results(input, input, true_mask, pred_mask, epoch+1, text='phase_1')
                     
                     loss = fmd_v2.calculate_loss(pred_mask, true_mask)
-                    total_loss_seg_val += loss.items()
+                    total_loss_seg_val += loss.item()
             
-            print(f"loss_seg_train: {total_loss_seg/len(train_real_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_real_loader)}")
+            print(f"loss_seg_train: {total_loss_seg/len(train_real_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_real_loader):.4f}")
                 
                 
     # phase 2: train with fake image
@@ -98,9 +98,9 @@ def main():
                         visualize_results(input, real_image, true_mask, pred_mask, epoch+1, text='phase_2')
                     
                     loss = fmd_v2.calculate_loss(pred_mask, true_mask)
-                    total_loss_seg_val += loss.items()
+                    total_loss_seg_val += loss.item()
             
-            print(f"loss_seg_train: {total_loss_seg/len(train_real_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_real_loader)}")
+            print(f"loss_seg_train: {total_loss_seg/len(train_fake_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_fake_loader):.4f}")
                 
 
 if __name__ == '__main__':
