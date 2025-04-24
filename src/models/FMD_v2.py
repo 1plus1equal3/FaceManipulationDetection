@@ -68,9 +68,10 @@ class FMD_v2(nn.Module):
         loss_d2 = self.criterion_segment(self.d2, self.labels)
         loss_d3 = self.criterion_segment(self.d3, self.labels)
         loss_d4 = self.criterion_segment(self.d4, self.labels)
+        loss_d5 = self.criterion_segment(self.d5, self.labels)
         loss_d6 = self.criterion_segment(self.d6, self.labels)
         
-        loss_seg = loss_d0 + loss_d1 + loss_d2 + loss_d3 + loss_d4 + loss_d6
+        loss_seg = loss_d0 + loss_d1 + loss_d2 + loss_d3 + loss_d4 + loss_d5 + loss_d6
 
         loss_seg.backward()
         
@@ -88,5 +89,8 @@ class FMD_v2(nn.Module):
         return loss_seg
     
     def calculate_loss(self, pred, gt):
+        pred = pred.to(self.device)
+        gt = gt.to(self.device)
+        
         loss = self.criterion_segment(pred, gt)
         return loss
