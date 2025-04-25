@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
+import torch.nn.functional as F
+
 def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, text='phase_1'):
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
@@ -37,3 +39,19 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, te
     
     plt.tight_layout()
     plt.savefig(f'results_2/{text}_{epoch}_v2.png')
+    
+# PSNR calculation function for a batch
+def compute_psnr_batch(original, reconstructed, max_pixel_value=1.0, epsilon=1e-10):
+    """
+    Calculate PSNR for a batch of images.
+    Args:
+        original: Tensor of shape (B, C, H, W), original images
+        reconstructed: Tensor of shape (B, C, H, W), reconstructed images
+        max_pixel_value: Maximum pixel value (1.0 for normalized, 255.0 for 8-bit)
+        epsilon: Small value to avoid division by zero
+    Returns:
+        psnr: Tensor of shape (B,), PSNR for each image in the batch
+    """
+    mse = F.mse_loss(original, reconstructed, reduction='none').mean(dim=(1, 2, 3))
+    psnr = 10 * torch.log10((max_pixel_value ** 2) / (mse + epsilon))
+    return psnr
