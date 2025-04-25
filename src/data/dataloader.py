@@ -73,6 +73,7 @@ class GANDataset_V2(Dataset):
             
             real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
             real_image = cv2.imread(real_image_path)
+            real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
             
             if self.trans:
                 image = trans(image)
