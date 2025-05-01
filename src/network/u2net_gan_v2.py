@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torchsummary import summary
-from src.network.modules import CBAM, FrequencyModule, TextureModule, AttentionGate
+from src.network.modules import CBAM, FrequencyModule, TextureModule, AttentionGate, AdaptiveFusion
 from src.network.backbone_u2_net import *
 
 ## upsample tensor 'src' to have the same spatial size with tensor 'tar'
@@ -35,6 +35,8 @@ class U2NetGanV2(nn.Module):
         self.cbam1 = CBAM(64)
         # Texture Module
         self.text1 = TextureModule(64)
+        # Adaptive Fusion
+        self.adapt_fusion1 = AdaptiveFusion(64, 64)
         # Attention Gate
         self.attn_gate_1 = AttentionGate(64)
         self.pool12 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
@@ -45,6 +47,8 @@ class U2NetGanV2(nn.Module):
         self.cbam2 = CBAM(128)
         # Texture Module
         self.text2 = TextureModule(128)
+        # Adaptive Fusion
+        self.adapt_fusion2 = AdaptiveFusion(128, 128)
         # Attention Gate
         self.attn_gate_2 = AttentionGate(128)
         self.pool23 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
@@ -55,6 +59,8 @@ class U2NetGanV2(nn.Module):
         self.cbam3 = CBAM(256)
         # Texture Module
         self.text3 = TextureModule(256)
+        # Adaptive Fusion
+        self.adapt_fusion3 = AdaptiveFusion(256, 256)
         # Attention Gate
         self.attn_gate_3 = AttentionGate(256)
         self.pool34 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
@@ -62,8 +68,10 @@ class U2NetGanV2(nn.Module):
         self.stage4 = RSU4(256,128,512)
         # CBAM
         self.cbam4 = CBAM(512)
-        # Texture Module
-        self.text4 = TextureModule(512)
+        # # Texture Module
+        # self.text4 = TextureModule(512)
+        # # Adaptive Fusion
+        # self.adapt_fusion1 = AdaptiveFusion(512, 512)
         self.pool45 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage5 = RSU4F(512,256,512)
@@ -78,7 +86,7 @@ class U2NetGanV2(nn.Module):
         self.stage2d = RSU6(256,32,64)
         self.stage1d = RSU7(128,16,64)
         
-        self.side1 = nn.Conv2d(64,out_ch,3,padding=1)
+        self.side1 = nn.Conv2d(128,out_ch,3,padding=1)      # concat with frequency module
         self.side2 = nn.Conv2d(64,out_ch,3,padding=1)
         self.side3 = nn.Conv2d(128,out_ch,3,padding=1)
         self.side4 = nn.Conv2d(256,out_ch,3,padding=1)
@@ -95,30 +103,30 @@ class U2NetGanV2(nn.Module):
         hx = x
 
         #stage 1
-        hx1 = self.stage1(hx)       # RSU Block
-        hx1 = self.cbam1(hx1)       # CBAM Block
-        hx1 = self.text1(hx1)       # Texture Block
-        hx1 = self.attn_gate_1(hx1, frequency1)      # Attention Gate
+        hx1 = self.stage1(hx)
+        texture1 = self.text1(hx1)
+        spatial1 = self.adapt_fusion1(hx1, texture1)    # adaptive fusion
+        hx1 = self.attn_gate_1(spatial1, frequency1)      # Attention Gate
         hx = self.pool12(hx1)
 
         #stage 2
-        hx2 = self.stage2(hx)       # RSU Block
-        hx2 = self.cbam2(hx2)       # CBAM Block
-        hx2 = self.text2(hx2)       # Texture Block
-        hx2 = self.attn_gate_2(hx2, frequency2)      # Attention Gate
+        hx2 = self.stage2(hx)
+        texture2 = self.text2(hx2)
+        spatial2 = self.adapt_fusion2(hx2, texture2)    # adaptive fusion
+        hx2 = self.attn_gate_2(spatial2, frequency2)      # Attention Gate
         hx = self.pool23(hx2)
 
         #stage 3
-        hx3 = self.stage3(hx)       # RSU Block
-        hx3 = self.cbam3(hx3)       # CBAM Block
-        hx3 = self.text3(hx3)       # Texture Block
-        hx3 = self.attn_gate_3(hx3, frequency3)      # Attention Gate
+        hx3 = self.stage3(hx)
+        texture3 = self.text3(hx3)
+        spatial3 = self.adapt_fusion3(hx3, texture3)    # adaptive fusion
+        hx3 = self.attn_gate_3(spatial3, frequency3)      # Attention Gate
         hx = self.pool34(hx3)
 
         #stage 4
         hx4 = self.stage4(hx)
         hx4 = self.cbam4(hx4)       # CBAM Block
-        hx4 = self.text4(hx4)       # Texture Block
+        # hx4 = self.text4(hx4)       # Texture Block
         hx = self.pool45(hx4)
 
         #stage 5
@@ -145,8 +153,8 @@ class U2NetGanV2(nn.Module):
         hx1d = self.stage1d(torch.cat((hx2dup,hx1),1))
 
 
-        #side output
-        d1 = self.side1(hx1d * frequency1)      # attention by frequency in the last decoder layer
+        # side output
+        d1 = self.side1(torch.cat((hx1d, frequency1), 1))      # attention by frequency in the last decoder layer
 
         d2 = self.side2(hx2d)
         d2 = _upsample_like(d2,d1)
