@@ -1,6 +1,7 @@
 import os
 import sys
 import cv2
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -9,6 +10,7 @@ sys.path.append(os.getcwd())
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from torch.utils.data.distributed import DistributedSampler
 
 dataset_path = 'datasets'
 
@@ -17,6 +19,10 @@ trans = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((256, 256)),
 ])
+
+# load config file
+with open('src/config.json', 'r') as f:
+    config = json.load(f)
 
 class GanDataset(Dataset):
     def __init__(self, real_image_paths, fake_image_paths, masked_fake_image_paths, trans=None):
@@ -121,8 +127,9 @@ def get_dataloader(mode='train', is_real=False):
                 trans=trans
             )
         
-            train_real_loader = DataLoader(train_real_dataset, batch_size=32, shuffle=True)
-            return train_real_loader
+            sampler = DistributedSampler(train_real_dataset)
+            train_real_loader = DataLoader(train_real_dataset, batch_size=config['datasets']['is_real']['train'], sampler=sampler)
+            return train_real_loader, sampler
         else:
             train_fake_dataset = GANDataset_V2(
                 image_paths=fake_image_paths[:20000],
@@ -130,23 +137,26 @@ def get_dataloader(mode='train', is_real=False):
                 trans=trans
             )
             
-            train_fake_loader = DataLoader(train_fake_dataset, batch_size=32,shuffle=True)
-            return train_fake_loader
+            sampler = DistributedSampler(train_fake_dataset)
+            train_fake_loader = DataLoader(train_fake_dataset, batch_size=config['datasets']['not_is_real']['train'], sampler=sampler)
+            return train_fake_loader, sampler
     elif mode == 'test':
         if is_real:
             test_real_dataset = GANDataset_V2(
-                image_paths=real_image_paths[3000:3100],
+                image_paths=real_image_paths[3000:4000],
                 trans=trans
             )
             
-            test_real_loader = DataLoader(test_real_dataset, batch_size=16, shuffle=True)
+            sampler = DistributedSampler(test_real_dataset)
+            test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['is_real']['val'], shuffle=False, sampler=sampler)
             return test_real_loader
         else:
             test_fake_dataset = GANDataset_V2(
-                image_paths=fake_image_paths[30000:31000],
-                label_paths=mask_image_paths[30000:31000],
+                image_paths=fake_image_paths[30000:40000],
+                label_paths=mask_image_paths[30000:40000],
                 trans=trans
             )
             
-            test_fake_loader = DataLoader(test_fake_dataset, batch_size=32, shuffle=False)
+            sampler = DistributedSampler(test_fake_dataset)
+            test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['not_is_real']['val'], shuffle=False, sampler=sampler)
             return test_fake_loader
