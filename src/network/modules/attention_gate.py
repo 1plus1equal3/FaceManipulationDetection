@@ -7,12 +7,9 @@ class AttentionGate(nn.Module):
         
         # attention gate
         self.attn_gate = nn.Sequential(
-            nn.Conv2d(in_channels * 2, in_channels * 2, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_channels * 2),
+            nn.Conv2d(in_channels * 2, in_channels, kernel_size=1, stride=1),
             nn.ReLU(),
-            nn.Conv2d(in_channels * 2, in_channels, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(in_channels),
-            nn.ReLU(),
+            nn.Conv2d(in_channels, 1, kernel_size=1, stride=1),
             nn.Sigmoid()
         )
         
