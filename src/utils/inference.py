@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from src.models.FMD_v2 import FMD_v2
 from src.data.dataloader import get_dataloader
-from src.utils.util import visualize_results
+from src.utils.util import visualize_results, compute_psnr_batch
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -41,15 +41,18 @@ def main():
     
     # inference
     model.eval()
+    psnr = 0.0
     with torch.no_grad():
         for i, (fake_image, true_mask, real_image) in enumerate(test_fake_loader):
             model.set_input(fake_image, true_mask, real_image)
             pred_mask, _, _, _, _, _, _ = model()
             
-            visualize_results(fake_image, real_image, true_mask, pred_mask, 100 + i, text='attn_gate')
+            if i < args.num_image:
+                visualize_results(fake_image, real_image, true_mask, pred_mask, 100 + i, text='attn_gate')
             
-            if i >= args.num_image:
-                break
+            psnr += compute_psnr_batch(pred_mask, true_mask)
+        
+        print(f"psnr: {psnr/len(test_fake_loader):.4f}")
             
 if __name__ == '__main__':
     main()
