@@ -5,6 +5,7 @@ sys.path.append(os.getcwd())
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchsummary import summary
 
 from torchsummary import summary
 from src.network.modules import CBAM, FrequencyModule, TextureModule, AttentionGate, AdaptiveFusion
@@ -86,7 +87,7 @@ class U2NetGanV2(nn.Module):
         self.stage2d = RSU6(256,32,64)
         self.stage1d = RSU7(128,16,64)
         
-        self.side1 = nn.Conv2d(128,out_ch,3,padding=1)      # concat with frequency module
+        self.side1 = nn.Conv2d(64,out_ch,3,padding=1)      # concat with frequency module
         self.side2 = nn.Conv2d(64,out_ch,3,padding=1)
         self.side3 = nn.Conv2d(128,out_ch,3,padding=1)
         self.side4 = nn.Conv2d(256,out_ch,3,padding=1)
@@ -125,7 +126,7 @@ class U2NetGanV2(nn.Module):
 
         #stage 4
         hx4 = self.stage4(hx)
-        hx4 = self.cbam4(hx4)       # CBAM Block
+        # hx4 = self.cbam4(hx4)       # CBAM Block
         # hx4 = self.text4(hx4)       # Texture Block
         hx = self.pool45(hx4)
 
@@ -154,7 +155,7 @@ class U2NetGanV2(nn.Module):
 
 
         # side output
-        d1 = self.side1(torch.cat((hx1d, frequency1), 1))      # attention by frequency in the last decoder layer
+        d1 = self.side1(hx1d)      # attention by frequency in the last decoder layer
 
         d2 = self.side2(hx2d)
         d2 = _upsample_like(d2,d1)
