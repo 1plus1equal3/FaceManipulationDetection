@@ -14,10 +14,17 @@ from torch.utils.data.distributed import DistributedSampler
 
 dataset_path = 'datasets'
 
-# transform
-trans = transforms.Compose([
+# transform for input image
+trans_input = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((256, 256)),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+])
+
+# transform for gt mask
+trans_label = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Resize((256, 256))
 ])
 
 # load config file
@@ -25,11 +32,12 @@ with open('src/config.json', 'r') as f:
     config = json.load(f)
 
 class GanDataset(Dataset):
-    def __init__(self, real_image_paths, fake_image_paths, masked_fake_image_paths, trans=None):
+    def __init__(self, real_image_paths, fake_image_paths, masked_fake_image_paths, trans_input=None, trans_label=None):
         self.real_image_paths = real_image_paths
         self.fake_image_paths = fake_image_paths
         self.masked_fake_image_paths = masked_fake_image_paths
-        self.trans = trans
+        self.trans_input = trans_input
+        self.trans_label = trans_label
 
     def __len__(self):
         # combine real and fake for training
@@ -50,19 +58,24 @@ class GanDataset(Dataset):
             masked_image = cv2.imread(self.masked_fake_image_paths[idx - len(self.real_image_paths)], cv2.IMREAD_GRAYSCALE)
             input_is_real = False
 
-        if self.trans:
-            image = self.trans(image)
-            masked_image = self.trans(masked_image)
+        # trans input
+        if self.trans_input:
+            image = self.trans_input(image)
+            
+        # trans label    
+        if self.trans_label:
+            masked_image = self.trans_label(masked_image)
 
         return image, masked_image, input_is_real
     
     
 class GANDataset_V2(Dataset):
-    def __init__(self, image_paths, label_paths=None, trans=None):
+    def __init__(self, image_paths, label_paths=None, trans_input=None, trans_label=None):
         self.image_paths = image_paths
-        self.trans = trans
         self.label_paths = label_paths
-    
+        self.trans_input = trans_input
+        self.trans_label = trans_label
+            
     def __len__(self):
         return len(self.image_paths)
     
@@ -81,20 +94,25 @@ class GANDataset_V2(Dataset):
             real_image = cv2.imread(real_image_path)
             real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
             
-            if self.trans:
-                image = trans(image)
-                label = trans(label)
-                real_image = trans(real_image)
+            if self.trans_input:
+                image = self.trans_input(image)
+                real_image = self.trans_input(real_image)
+                
+            if self.trans_label:
+                label = self.trans_label(label)
         
             return image, label, real_image
+        
         # real_image
         else:
             label =  np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
             label = np.expand_dims(label, axis=2)         # (H, W, 1)
         
-            if self.trans:
-                image = trans(image)
-                label = trans(label)
+            if self.trans_input:
+                image = self.trans_input(image)
+                
+            if self.trans_label:    
+                label = self.trans_label(label)
             
             return image, label
     
@@ -124,39 +142,43 @@ def get_dataloader(mode='train', is_real=False):
             train_real_dataset = GANDataset_V2(
                 # train with small part of data for testing
                 image_paths=real_image_paths[:2000],
-                trans=trans
+                trans_input=trans_input,
+                trans_label=trans_label
             )
         
-            sampler = DistributedSampler(train_real_dataset)
-            train_real_loader = DataLoader(train_real_dataset, batch_size=config['datasets']['is_real']['train'], sampler=sampler)
-            return train_real_loader, sampler
+            # sampler = DistributedSampler(train_real_dataset)
+            train_real_loader = DataLoader(train_real_dataset, batch_size=config['datasets']['is_real']['train'], shuffle=True)
+            return train_real_loader
         else:
             train_fake_dataset = GANDataset_V2(
                 image_paths=fake_image_paths[:20000],
                 label_paths=mask_image_paths[:20000],
-                trans=trans
+                trans_input=trans_input,
+                trans_label=trans_label
             )
             
-            sampler = DistributedSampler(train_fake_dataset)
-            train_fake_loader = DataLoader(train_fake_dataset, batch_size=config['datasets']['not_is_real']['train'], sampler=sampler)
-            return train_fake_loader, sampler
+            # sampler = DistributedSampler(train_fake_dataset)
+            train_fake_loader = DataLoader(train_fake_dataset, batch_size=config['datasets']['not_is_real']['train'], shuffle=True)
+            return train_fake_loader
     elif mode == 'test':
         if is_real:
             test_real_dataset = GANDataset_V2(
                 image_paths=real_image_paths[3000:4000],
-                trans=trans
+                trans_input=trans_input,
+                trans_label=trans_label
             )
             
-            sampler = DistributedSampler(test_real_dataset)
-            test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['is_real']['val'], shuffle=False, sampler=sampler)
+            # sampler = DistributedSampler(test_real_dataset)
+            test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['is_real']['val'], shuffle=False)
             return test_real_loader
         else:
             test_fake_dataset = GANDataset_V2(
                 image_paths=fake_image_paths[30000:40000],
                 label_paths=mask_image_paths[30000:40000],
-                trans=trans
+                trans_input=trans_input,
+                trans_label=trans_label
             )
             
-            sampler = DistributedSampler(test_fake_dataset)
-            test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['not_is_real']['val'], shuffle=False, sampler=sampler)
+            # sampler = DistributedSampler(test_fake_dataset)
+            test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['not_is_real']['val'], shuffle=False)
             return test_fake_loader
