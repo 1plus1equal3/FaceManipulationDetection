@@ -13,8 +13,6 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-dataset_path = 'datasets'
-
 # transform for input image
 trans_input = transforms.Compose([
     transforms.ToTensor(),
@@ -120,9 +118,9 @@ class GANDataset_V2(Dataset):
 
 def get_data_paths(dataset_path):
     # real + fake + mask image paths
-    real_image_folder_path = os.path.join(dataset_path, 'reals')
-    fake_image_folder_path = os.path.join(dataset_path, 'fakes')
-    mask_image_folder_path = os.path.join(dataset_path, 'masks')
+    real_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/real-20250326T031740Z-001/real')
+    fake_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/fake_attrGAN/fake_attrGAN')
+    mask_image_folder_path = os.path.join(dataset_path, 'masked-dataset-newversion/mask')
 
     # get real image paths
     real_image_paths = sorted([os.path.join(real_image_folder_path, real_image_path) for real_image_path in os.listdir(real_image_folder_path)])
@@ -135,7 +133,7 @@ def get_data_paths(dataset_path):
     return real_image_paths, fake_image_paths, mask_image_paths
     
 
-def get_dataloader(mode='train', is_real=False):
+def get_dataloader(dataset_path, mode='train', is_real=False):
     real_image_paths, fake_image_paths, mask_image_paths = get_data_paths(dataset_path=dataset_path)
     
     # train model with 30000 fake images and 3000 real images
