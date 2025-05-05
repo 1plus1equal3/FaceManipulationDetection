@@ -1,16 +1,17 @@
+import json
 import os
 import sys
+
 import cv2
-import json
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 sys.path.append(os.getcwd())
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from torch.utils.data.distributed import DistributedSampler
 
 dataset_path = 'datasets'
 
@@ -137,11 +138,22 @@ def get_data_paths(dataset_path):
 def get_dataloader(mode='train', is_real=False):
     real_image_paths, fake_image_paths, mask_image_paths = get_data_paths(dataset_path=dataset_path)
     
+    # train model with 30000 fake images and 3000 real images
+    real_image_paths = real_image_paths[:3000]
+    mask_image_paths = mask_image_paths[:30000]
+    fake_image_paths = fake_image_paths[:30000]
+
+    # train test split
+    train_real_image_paths, val_real_image_paths = train_test_split(real_image_paths, test_size=0.3, random_state=42)
+    
+    train_fake_image_paths, val_fake_image_paths, train_mask_images_paths, \
+        val_mask_image_paths = train_test_split(fake_image_paths, mask_image_paths, test_size=0.3, random_state=42)
+
     if mode == 'train':
         if is_real:
             train_real_dataset = GANDataset_V2(
                 # train with small part of data for testing
-                image_paths=real_image_paths[:2000],
+                image_paths=train_real_image_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
@@ -151,8 +163,8 @@ def get_dataloader(mode='train', is_real=False):
             return train_real_loader
         else:
             train_fake_dataset = GANDataset_V2(
-                image_paths=fake_image_paths[:20000],
-                label_paths=mask_image_paths[:20000],
+                image_paths=train_fake_image_paths,
+                label_paths=train_mask_images_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
@@ -163,22 +175,22 @@ def get_dataloader(mode='train', is_real=False):
     elif mode == 'test':
         if is_real:
             test_real_dataset = GANDataset_V2(
-                image_paths=real_image_paths[3000:4000],
+                image_paths=val_real_image_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
             
             # sampler = DistributedSampler(test_real_dataset)
-            test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['is_real']['val'], shuffle=False)
+            test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['is_real']['val'], shuffle=True)
             return test_real_loader
         else:
             test_fake_dataset = GANDataset_V2(
-                image_paths=fake_image_paths[30000:40000],
-                label_paths=mask_image_paths[30000:40000],
+                image_paths=val_fake_image_paths,
+                label_paths=val_mask_image_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
             
             # sampler = DistributedSampler(test_fake_dataset)
-            test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['not_is_real']['val'], shuffle=False)
+            test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['not_is_real']['val'], shuffle=True)
             return test_fake_loader
