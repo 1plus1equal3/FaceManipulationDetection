@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 
-def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, text='phase_1'):
+def visualize_results(true_images, rec_images, true_masks, pred_masks, save_folder, epoch, text='phase_1'):
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
     true_masks = true_masks.cpu().numpy()
@@ -40,7 +40,7 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, te
         axes[4*i+3].axis("off")
     
     plt.tight_layout()
-    plt.savefig(f'results/{text}_{epoch}_v2.png')
+    plt.savefig(f'{save_folder}/{text}_{epoch}_v2.png')
     
 # PSNR calculation function for a batch
 def compute_psnr_batch(original, reconstructed, device='cpu', max_pixel_value=1.0, epsilon=1e-10):
