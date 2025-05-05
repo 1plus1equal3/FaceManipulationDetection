@@ -89,7 +89,12 @@ class GANDataset_V2(Dataset):
             label_path = self.label_paths[idx]
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
             
-            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
+            # for kaggle path
+            parent_dir = os.path.dirname(image_path)
+            real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
+            
+            # for local path
+            # real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
             real_image = cv2.imread(real_image_path)
             real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
             
