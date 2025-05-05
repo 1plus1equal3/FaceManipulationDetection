@@ -1,10 +1,10 @@
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
+import torch
 import torch.nn.functional as F
 
-def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, text='phase_1'):
+
+def visualize_results(true_images, rec_images, true_masks, pred_masks, save_folder, epoch, text='phase_1'):
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
     true_masks = true_masks.cpu().numpy()
@@ -17,7 +17,9 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, te
         true_image = np.transpose(true_images[i], (1, 2, 0))
         rec_image = np.transpose(rec_images[i], (1, 2, 0))
         # make sure that rec img in range(0, 1) instead (-1, 1)
-        # rec_image = (rec_image + 1) / 2
+        true_image = (true_image + 1) / 2
+        rec_image = (rec_image + 1) / 2
+        
         true_mask = np.transpose(true_masks[i], (1, 2, 0))
         pred_mask = np.transpose(pred_masks[i], (1, 2, 0))
         
@@ -38,10 +40,10 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks, epoch, te
         axes[4*i+3].axis("off")
     
     plt.tight_layout()
-    plt.savefig(f'results_2/{text}_{epoch}_v2.png')
+    plt.savefig(f'{save_folder}/{text}_{epoch}_v2.png')
     
 # PSNR calculation function for a batch
-def compute_psnr_batch(original, reconstructed, max_pixel_value=1.0, epsilon=1e-10):
+def compute_psnr_batch(original, reconstructed, device='cpu', max_pixel_value=1.0, epsilon=1e-10):
     """
     Calculate PSNR for a batch of images.
     Args:
@@ -52,6 +54,10 @@ def compute_psnr_batch(original, reconstructed, max_pixel_value=1.0, epsilon=1e-
     Returns:
         psnr: Tensor of shape (B,), PSNR for each image in the batch
     """
+    original = original.to(device)
+    reconstructed = reconstructed.to(device)
+    
     mse = F.mse_loss(original, reconstructed, reduction='none').mean(dim=(1, 2, 3))
     psnr = 10 * torch.log10((max_pixel_value ** 2) / (mse + epsilon))
-    return psnr
+    psnr_avg = torch.mean(psnr)
+    return psnr_avg

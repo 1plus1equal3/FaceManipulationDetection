@@ -5,12 +5,10 @@ import torch.nn.functional as F
 class AdaptiveFusion(nn.Module):
     def __init__(self, in_channels_texture, in_channels_rgb):
         super(AdaptiveFusion, self).__init__()
-        self.conv_texture = nn.Conv2d(in_channels_texture, in_channels_rgb, kernel_size=1)
         self.weight_layer = nn.Conv2d(in_channels_rgb * 2, 2, kernel_size=1)
         self.bn = nn.BatchNorm2d(in_channels_rgb)
     
     def forward(self, texture_features, rgb_features):
-        texture_features = self.conv_texture(texture_features)  # [B, in_channels_rgb, H, W]
         combined = torch.cat([texture_features, rgb_features], dim=1)  # [B, in_channels_rgb * 2, H, W]
         weights = torch.softmax(self.weight_layer(combined), dim=1)  # [B, 2, H, W]
         w_texture, w_rgb = weights[:, 0:1, :, :], weights[:, 1:2, :, :]
