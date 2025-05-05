@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import argparse
 
 sys.path.append(os.getcwd())
 
@@ -25,14 +26,20 @@ def load_config(config_path):
 config = load_config('src/config.json')
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset_path', type=str, default='', help='path to your dataset')
+    parser.add_argument('--save_results', type=str, default='', help='path to save results')
+    
+    args = parser.parse_args()
+    
     # define model
     fmd_v2 = FMD_v2(device=device)
     
     # dataloader
-    train_real_loader = get_dataloader(mode='train', is_real=True)
-    train_fake_loader = get_dataloader(mode='train', is_real=False)
-    test_real_loader = get_dataloader(mode='test', is_real=True)
-    test_fake_loader= get_dataloader(mode='test', is_real=False)
+    train_real_loader = get_dataloader(args.dataset_path, mode='train', is_real=True)
+    train_fake_loader = get_dataloader(args.dataset_path, mode='train', is_real=False)
+    test_real_loader = get_dataloader(args.dataset_path, mode='test', is_real=True)
+    test_fake_loader= get_dataloader(args.dataset_path, mode='test', is_real=False)
     
     if not os.path.exists('checkpoints'):
         os.makedirs('checkpoints')
@@ -101,7 +108,7 @@ def main():
                 pred_mask, _, _, _, _, _, _ = fmd_v2()
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
-                    visualize_results(input, real_image, true_mask, pred_mask, epoch+1, text='phase_2')
+                    visualize_results(input, real_image, true_mask, pred_mask, args.save_results, epoch+1, text='phase_2')
                 
                 # segmemtation loss
                 loss = fmd_v2.calculate_loss(pred_mask, true_mask)
@@ -109,8 +116,7 @@ def main():
                 
                 # psnr
                 psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
-                total_psnr += psnr
-                
+                total_psnr += psnr.item()
         
         print(f"loss_seg_train: {total_loss_seg/len(train_fake_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_fake_loader):.4f}\t \
             psnr: {total_psnr/len(test_fake_loader):.4f}")
