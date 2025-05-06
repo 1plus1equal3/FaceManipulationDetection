@@ -10,8 +10,9 @@ import torchvision
 
 from tqdm import tqdm
 from src.network.backbone_gan import *
-from src.network.u2net_gan_v2 import U2NetGanV2, init_u2net_gan_v2
+from src.network.u2net import U2NetGanV2, init_u2net
 from src.utils.perceptural_loss import VGG19PerceptureLoss
+from src.network.backbone_u2_net import U2NET
 
 class FMD_v2(nn.Module):
     def __init__(self, device, in_channels=3):
@@ -19,17 +20,17 @@ class FMD_v2(nn.Module):
         self.device = device
         
         # init model
-        self.u2net_gan_v2 = init_u2net_gan_v2()
+        self.u2net = U2NET()
         
         # set training mode
-        self.u2net_gan_v2.train()
+        self.u2net.train()
         
         # use_gpu
-        self.u2net_gan_v2.to(self.device)
+        self.u2net.to(self.device)
         
         # define for training
         # optim
-        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=0.001, betas=(0.9, 0.999))
+        self.optimizer_u2net = optim.Adam(self.u2net.parameters(), lr=0.003, betas=(0.9, 0.999))
         
         # scheduler
         
@@ -39,7 +40,7 @@ class FMD_v2(nn.Module):
         
     def forward(self):
         # get output of u2net-gan
-        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6 = self.u2net_gan_v2(self.inputs)
+        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6 = self.u2net(self.inputs)
 
         return self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6
         
@@ -58,7 +59,7 @@ class FMD_v2(nn.Module):
                     param.requires_grad = requires_grad
             
     
-    def backward_u2net_gan_v2(self, lambda_seg=0.1):
+    def backward_u2net(self, lambda_seg=0.1):
         """ calculate loss for u2net-gan
         """
         
@@ -82,9 +83,9 @@ class FMD_v2(nn.Module):
         # pass data into network
         self.forward()
         # train u2net-gan
-        self.optimizer_u2net_gan_v2.zero_grad()
-        loss_seg = self.backward_u2net_gan_v2()
-        self.optimizer_u2net_gan_v2.step()
+        self.optimizer_u2net.zero_grad()
+        loss_seg = self.backward_u2net()
+        self.optimizer_u2net.step()
         
         return loss_seg
     
