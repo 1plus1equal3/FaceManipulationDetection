@@ -28,12 +28,22 @@ config = load_config('src/config.json')
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', type=str, default='', help='path to your dataset')
+    parser.add_argument('--weights', type=str, default=None, help='path to your pretrained weight')
+    parser.add_argument('--resume_epoch', type=int, default=0, help='resume epoch if using pretrained')
     parser.add_argument('--save_results', type=str, default='', help='path to save results')
     
     args = parser.parse_args()
     
     # define model
     fmd_v2 = FMD_v2(device=device)
+    
+    # load pre-trained weight
+    if args.weights:
+        model_dict = torch.load(args.weights)
+        
+        # load weight
+        pretrain_dict = {k: v for k, v in model_dict.items() if k in fmd_v2.state_dict()}
+        fmd_v2.load_state_dict(pretrain_dict, strict=False)
     
     # dataloader
     train_real_loader = get_dataloader(args.dataset_path, mode='train', is_real=True)
@@ -87,7 +97,7 @@ def main():
     epochs = config['model']['epoch']
     best_loss_seg = 1e6
     count = 0
-    for epoch in tqdm(range(50)):
+    for epoch in range(50):
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
 
@@ -98,7 +108,7 @@ def main():
             # total loss
             total_loss_seg += loss_seg.item()
             
-        # eval    
+        # eval
         # visualize some sample in test loader
         total_loss_seg_val = 0.0
         total_psnr = 0.0
@@ -118,8 +128,8 @@ def main():
                 psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                 total_psnr += psnr.item()
         
-        print(f"loss_seg_train: {total_loss_seg/len(train_fake_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_fake_loader):.4f}\t \
-            psnr: {total_psnr/len(test_fake_loader):.4f}")
+        print(f"Epoch: {epoch + args.resume_epoch + 1}\nloss_seg_train: {total_loss_seg/len(train_fake_loader):.4f}\n loss_seg_val: {total_loss_seg_val/len(test_fake_loader):.4f}\n \
+            psnr: {total_psnr/len(test_fake_loader):.4f}\n")
         
         # Early Stopping
         if total_loss_seg_val < best_loss_seg:
