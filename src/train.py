@@ -39,7 +39,7 @@ def main():
     
     # load pre-trained weight
     if args.weights:
-        model_dict = torch.load(args.weights)
+        model_dict = torch.load(args.weights, weights_only=True)
         
         # load weight
         pretrain_dict = {k: v for k, v in model_dict.items() if k in fmd_v2.state_dict()}
