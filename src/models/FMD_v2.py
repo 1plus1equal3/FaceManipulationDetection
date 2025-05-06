@@ -10,7 +10,6 @@ import torchvision
 
 from tqdm import tqdm
 from src.network.backbone_gan import *
-from src.network.backbone_u2_net import U2NetGanV2, init_u2net
 from src.utils.perceptural_loss import VGG19PerceptureLoss
 from src.network.backbone_u2_net import U2NET
 
