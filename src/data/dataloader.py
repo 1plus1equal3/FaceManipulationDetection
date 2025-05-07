@@ -86,7 +86,6 @@ class GANDataset_V2(Dataset):
         
         # convert to ela image
         ela = convert_to_ela_image(image_path)
-        ela = trans_label(ela)
         
         # self.label_paths is not None => fake_image
         if self.label_paths:
@@ -109,6 +108,7 @@ class GANDataset_V2(Dataset):
                 
             if self.trans_label:
                 label = self.trans_label(label)
+                ela = self.trans_label(ela)
         
             return image, label, ela
         
@@ -122,6 +122,7 @@ class GANDataset_V2(Dataset):
                 
             if self.trans_label:
                 label = self.trans_label(label)
+                ela = self.trans_label(ela)
             
             return image, label, ela
     
