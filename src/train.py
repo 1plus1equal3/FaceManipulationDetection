@@ -112,12 +112,12 @@ def main():
         total_psnr = 0.0
         total_ssim = 0.0
         with torch.no_grad():
-            for i, (input, true_mask, real_image) in enumerate(test_combined_loader):
+            for i, (input, true_mask, ela) in enumerate(test_combined_loader):
                 fmd_v2.set_input(inputs=input, labels=true_mask, ela=ela)
                 pred_mask, _, _, _, _, _, _ = fmd_v2()
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
-                    visualize_results(input, real_image, true_mask, pred_mask, args.save_results, epoch+1, text='phase_2')
+                    visualize_results(input, ela, true_mask, pred_mask, args.save_results, epoch+1, text='phase_2')
                 
                 # segmemtation loss
                 loss = fmd_v2.calculate_loss(pred_mask, true_mask)
