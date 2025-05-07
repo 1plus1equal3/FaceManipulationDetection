@@ -1,6 +1,6 @@
 import os
 import sys
-import cv2
+import json
 sys.path.append(os.getcwd())
 
 import torch
@@ -12,6 +12,13 @@ from tqdm import tqdm
 from src.network.backbone_gan import *
 from src.network.u2net_gan_v2 import U2NetGanV2, init_u2net_gan_v2
 from src.utils.perceptural_loss import VGG19PerceptureLoss
+
+def load_config(config_path):
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    return config
+
+config = load_config('src/config.json')
 
 class FMD_v2(nn.Module):
     def __init__(self, device, in_channels=3):
@@ -29,7 +36,7 @@ class FMD_v2(nn.Module):
         
         # define for training
         # optim
-        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=0.001, betas=(0.9, 0.999))
+        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=config['model']['lr'], betas=(0.9, 0.999))
         
         # scheduler
         
