@@ -2,7 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
-
+from PIL import Image, ImageChops, ImageEnhance
+from io import BytesIO
 
 def visualize_results(true_images, rec_images, true_masks, pred_masks, save_folder, epoch, text='phase_1'):
     true_images = true_images.cpu().numpy()
@@ -60,4 +61,67 @@ def compute_psnr_batch(original, reconstructed, device='cpu', max_pixel_value=1.
     mse = F.mse_loss(original, reconstructed, reduction='none').mean(dim=(1, 2, 3))
     psnr = 10 * torch.log10((max_pixel_value ** 2) / (mse + epsilon))
     psnr_avg = torch.mean(psnr)
+    
     return psnr_avg
+
+# SSIM
+def gaussian_window(window_size: int, sigma: float):
+    gauss = torch.tensor([np.exp(-(x - window_size // 2) ** 2 / float(2 * sigma ** 2)) for x in range(window_size)])
+    gauss /= gauss.sum()
+    return gauss.unsqueeze(0) * gauss.unsqueeze(1)
+
+def create_window(window_size: int, channel: int, device):
+    window = gaussian_window(window_size, 1.5).to(device=device, dtype=torch.float32)
+    window = window.expand(channel, 1, window_size, window_size).contiguous()
+    return window
+
+def ssim_batch(img1, img2, window_size=11, C1=0.01**2, C2=0.03**2):
+    """
+    Compute SSIM over a batch of images.
+    
+    img1, img2: tensors with shape (N, C, H, W), values in [0, 1]
+    Returns average SSIM score over the batch.
+    """
+    assert img1.shape == img2.shape, "Input images must have the same shape"
+    N, C, H, W = img1.size()
+    device = img1.device
+
+    window = create_window(window_size, C, device)
+
+    mu1 = F.conv2d(img1, window, padding=window_size//2, groups=C)
+    mu2 = F.conv2d(img2, window, padding=window_size//2, groups=C)
+
+    mu1_sq = mu1.pow(2)
+    mu2_sq = mu2.pow(2)
+    mu1_mu2 = mu1 * mu2
+
+    sigma1_sq = F.conv2d(img1 * img1, window, padding=window_size//2, groups=C) - mu1_sq
+    sigma2_sq = F.conv2d(img2 * img2, window, padding=window_size//2, groups=C) - mu2_sq
+    sigma12 = F.conv2d(img1 * img2, window, padding=window_size//2, groups=C) - mu1_mu2
+
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
+               ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+
+    return ssim_map.mean(dim=[1, 2, 3]).mean().item()  # mean SSIM over spatial, channel, and batch
+
+def convert_to_ela_image(image_path, quality=90):
+    image = Image.open(image_path).convert('RGB')
+
+    # Save image to an in-memory buffer at specified JPEG quality
+    buffer = BytesIO()
+    image.save(buffer, 'JPEG', quality=quality)
+    buffer.seek(0)
+
+    # Load compressed image from the buffer
+    compressed_image = Image.open(buffer)
+
+    # Calculate ELA image (difference)
+    ela_image = ImageChops.difference(image, compressed_image)
+
+    # Enhance the difference
+    extrema = ela_image.getextrema()
+    max_diff = max([ex[1] for ex in extrema])
+    scale = 255.0 / max_diff if max_diff != 0 else 1
+    ela_image = ImageEnhance.Brightness(ela_image).enhance(scale)
+
+    return ela_image
