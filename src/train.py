@@ -99,8 +99,8 @@ def main():
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
 
-        for (input, true_mask, real_image) in train_combined_loader:
-            fmd_v2.set_input(input, true_mask, real_image)
+        for (input, true_mask, ela) in train_combined_loader:
+            fmd_v2.set_input(inputs=input, labels=true_mask, ela=ela)
             loss_seg = fmd_v2.optimize_parameters()
             
             # total loss
@@ -113,7 +113,7 @@ def main():
         total_ssim = 0.0
         with torch.no_grad():
             for i, (input, true_mask, real_image) in enumerate(test_combined_loader):
-                fmd_v2.set_input(input, true_mask, real_image)
+                fmd_v2.set_input(inputs=input, labels=true_mask, ela=ela)
                 pred_mask, _, _, _, _, _, _ = fmd_v2()
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
