@@ -5,3 +5,5 @@ from .attention_gate import AttentionGate
 from .adaptive_fussion import AdaptiveFusion
 from .triplet_attention import TripletAttention
 from .pyramid_pooling import PyramidPoolingModule
+from .ela import EncodeELA
+from .attention_gate_v2 import AttentionGateV2
