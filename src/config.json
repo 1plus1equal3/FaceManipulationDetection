@@ -6,15 +6,7 @@
     },
     "datasets":
     {
-        "is_real":
-        {
-            "train": 8,
-            "val": 32
-        },
-        "not_is_real":
-        {
-            "train": 8,
-            "val": 32
-        }
+        "train": 8,
+        "val": 32
     }
 }
