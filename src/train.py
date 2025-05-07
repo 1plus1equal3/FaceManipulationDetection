@@ -46,10 +46,8 @@ def main():
         fmd_v2.load_state_dict(pretrain_dict, strict=False)
     
     # dataloader
-    train_real_loader = get_dataloader(args.dataset_path, mode='train', is_real=True)
-    train_fake_loader = get_dataloader(args.dataset_path, mode='train', is_real=False)
-    test_real_loader = get_dataloader(args.dataset_path, mode='test', is_real=True)
-    test_fake_loader= get_dataloader(args.dataset_path, mode='test', is_real=False)
+    train_combined_loader = get_dataloader(dataset_path=args.dataset_path, mode='train', type='combined')
+    test_combined_loader = get_dataloader(dataset_path=args.dataset_path, mode='test', type='combined')
     
     if not os.path.exists('checkpoints'):
         os.makedirs('checkpoints')
@@ -101,7 +99,7 @@ def main():
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
 
-        for (input, true_mask, real_image) in train_fake_loader:
+        for (input, true_mask, real_image) in train_combined_loader:
             fmd_v2.set_input(input, true_mask, real_image)
             loss_seg = fmd_v2.optimize_parameters()
             
@@ -112,8 +110,9 @@ def main():
         # visualize some sample in test loader
         total_loss_seg_val = 0.0
         total_psnr = 0.0
+        total_ssim = 0.0
         with torch.no_grad():
-            for i, (input, true_mask, real_image) in enumerate(test_fake_loader):
+            for i, (input, true_mask, real_image) in enumerate(test_combined_loader):
                 fmd_v2.set_input(input, true_mask, real_image)
                 pred_mask, _, _, _, _, _, _ = fmd_v2()
                 
@@ -127,9 +126,13 @@ def main():
                 # psnr
                 psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                 total_psnr += psnr.item()
+                
+                # ssim
+                ssim = ssim_batch(pred_mask, true_mask)
+                total_ssim += ssim.item()
         
-        print(f"Epoch: {epoch + args.resume_epoch + 1}\nloss_seg_train: {total_loss_seg/len(train_fake_loader):.4f}\n loss_seg_val: {total_loss_seg_val/len(test_fake_loader):.4f}\n \
-            psnr: {total_psnr/len(test_fake_loader):.4f}\n")
+        print(f"Epoch: {epoch + args.resume_epoch + 1}\nloss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\nloss_seg_val: {total_loss_seg_val/len(train_combined_loader):.4f}\n\
+            psnr: {total_psnr/len(test_combined_loader):.4f}\nssim: {total_ssim/len(test_combined_loader):.4f}\n")
         
         # Early Stopping
         if total_loss_seg_val < best_loss_seg:
