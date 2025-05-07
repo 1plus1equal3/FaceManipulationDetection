@@ -10,8 +10,9 @@ sys.path.append(os.getcwd())
 
 import torch
 from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, ConcatDataset
 from torchvision import transforms
+from src.utils.util import convert_to_ela_image
 
 # transform for input image
 trans_input = transforms.Compose([
@@ -83,6 +84,10 @@ class GANDataset_V2(Dataset):
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
+        # convert to ela image
+        ela = convert_to_ela_image(image_path)
+        ela = trans_label(ela)
+        
         # self.label_paths is not None => fake_image
         if self.label_paths:
             # read mask image
@@ -100,12 +105,12 @@ class GANDataset_V2(Dataset):
             
             if self.trans_input:
                 image = self.trans_input(image)
-                real_image = self.trans_input(real_image)
+                # real_image = self.trans_input(real_image)
                 
             if self.trans_label:
                 label = self.trans_label(label)
         
-            return image, label, real_image
+            return image, label, ela
         
         # real_image
         else:
@@ -115,10 +120,10 @@ class GANDataset_V2(Dataset):
             if self.trans_input:
                 image = self.trans_input(image)
                 
-            if self.trans_label:    
+            if self.trans_label:
                 label = self.trans_label(label)
             
-            return image, label
+            return image, label, ela
     
 
 def get_data_paths(dataset_path):
@@ -138,13 +143,13 @@ def get_data_paths(dataset_path):
     return real_image_paths, fake_image_paths, mask_image_paths
     
 
-def get_dataloader(dataset_path, mode='train', is_real=False):
+def get_dataloader(dataset_path, mode='train', type='train'):
     real_image_paths, fake_image_paths, mask_image_paths = get_data_paths(dataset_path=dataset_path)
     
     # train model with 30000 fake images and 3000 real images
-    real_image_paths = real_image_paths[:3000]
-    mask_image_paths = mask_image_paths[:30000]
-    fake_image_paths = fake_image_paths[:30000]
+    real_image_paths = real_image_paths[:5000]
+    mask_image_paths = mask_image_paths[:40000]
+    fake_image_paths = fake_image_paths[:40000]
 
     # train test split
     train_real_image_paths, val_real_image_paths = train_test_split(real_image_paths, test_size=0.3, random_state=42)
@@ -153,47 +158,65 @@ def get_dataloader(dataset_path, mode='train', is_real=False):
         val_mask_image_paths = train_test_split(fake_image_paths, mask_image_paths, test_size=0.3, random_state=42)
 
     if mode == 'train':
-        if is_real:
-            train_real_dataset = GANDataset_V2(
+        # real dataset
+        train_real_dataset = GANDataset_V2(
                 # train with small part of data for testing
                 image_paths=train_real_image_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
+
+        train_real_loader = DataLoader(train_real_dataset, batch_size=config['datasets']['train'], shuffle=True)
         
-            # sampler = DistributedSampler(train_real_dataset)
-            train_real_loader = DataLoader(train_real_dataset, batch_size=config['datasets']['is_real']['train'], shuffle=True)
-            return train_real_loader
-        else:
-            train_fake_dataset = GANDataset_V2(
+        # fake dataset
+        train_fake_dataset = GANDataset_V2(
                 image_paths=train_fake_image_paths,
                 label_paths=train_mask_images_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
-            
-            # sampler = DistributedSampler(train_fake_dataset)
-            train_fake_loader = DataLoader(train_fake_dataset, batch_size=config['datasets']['not_is_real']['train'], shuffle=True)
+
+        train_fake_loader = DataLoader(train_fake_dataset, batch_size=config['datasets']['train'], shuffle=True)
+        
+        if type == 'real':
+            return train_real_loader
+        elif type == 'fake':
             return train_fake_loader
+        elif type == 'combined':
+            combined_dataset = ConcatDataset([train_real_dataset, train_fake_dataset])
+            combined_loader = DataLoader(combined_dataset, batch_size=config['datasets']['train'], shuffle=True)
+            return combined_loader
+        else:
+            print("Error in type of dataset")
+            
     elif mode == 'test':
-        if is_real:
-            test_real_dataset = GANDataset_V2(
+        # real dataset
+        test_real_dataset = GANDataset_V2(
                 image_paths=val_real_image_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
             
-            # sampler = DistributedSampler(test_real_dataset)
-            test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['is_real']['val'], shuffle=True)
-            return test_real_loader
-        else:
-            test_fake_dataset = GANDataset_V2(
+        test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['val'], shuffle=True)
+        
+        # fake dataset
+        test_fake_dataset = GANDataset_V2(
                 image_paths=val_fake_image_paths,
                 label_paths=val_mask_image_paths,
                 trans_input=trans_input,
                 trans_label=trans_label
             )
             
-            # sampler = DistributedSampler(test_fake_dataset)
-            test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['not_is_real']['val'], shuffle=True)
+        # sampler = DistributedSampler(test_fake_dataset)
+        test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['val'], shuffle=True)
+            
+        if type == 'train':
+            return test_real_loader
+        elif type == 'test':
             return test_fake_loader
+        elif type == 'combined':
+            combined_dataset = ConcatDataset([test_real_dataset, test_fake_dataset])
+            combined_loader = DataLoader(combined_dataset, batch_size=config['datasets']['val'], shuffle=True)
+            return combined_loader
+        else:
+            print("Error in type of dataset")
