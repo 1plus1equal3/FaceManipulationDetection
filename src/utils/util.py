@@ -85,6 +85,7 @@ def ssim_batch(img1, img2, window_size=11, C1=0.01**2, C2=0.03**2):
     assert img1.shape == img2.shape, "Input images must have the same shape"
     N, C, H, W = img1.size()
     device = img1.device
+    img2 = img2.to(device)
 
     window = create_window(window_size, C, device)
 
@@ -102,7 +103,7 @@ def ssim_batch(img1, img2, window_size=11, C1=0.01**2, C2=0.03**2):
     ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
                ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
 
-    return ssim_map.mean(dim=[1, 2, 3]).mean().item()  # mean SSIM over spatial, channel, and batch
+    return ssim_map.mean(dim=[1, 2, 3]).mean()  # mean SSIM over spatial, channel, and batch
 
 def convert_to_ela_image(image_path, quality=90):
     image = Image.open(image_path).convert('RGB')
