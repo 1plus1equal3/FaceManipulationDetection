@@ -89,18 +89,22 @@ class GANDataset_V2(Dataset):
         
         # self.label_paths is not None => fake_image
         if self.label_paths:
+            # fake
+            true_cls_label = 1
             # read mask image
             label_path = self.label_paths[idx]
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
             
             # for kaggle path
-            parent_dir = os.path.dirname(image_path)
-            real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
+            # parent_dir = os.path.dirname(image_path)
+            # real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
             
             # for local path
-            # real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
+            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
             real_image = cv2.imread(real_image_path)
             real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
+
+            true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
             
             if self.trans_input:
                 image = self.trans_input(image)
@@ -110,13 +114,18 @@ class GANDataset_V2(Dataset):
                 label = self.trans_label(label)
                 ela = self.trans_label(ela)
         
-            return image, label, ela
+            return image, label, ela, true_cls_label
         
         # real_image
         else:
+            # real
+            true_cls_label = 0
+            # segment label
             label =  np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
             label = np.expand_dims(label, axis=2)         # (H, W, 1)
-        
+
+            true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
+            
             if self.trans_input:
                 image = self.trans_input(image)
                 
@@ -124,7 +133,7 @@ class GANDataset_V2(Dataset):
                 label = self.trans_label(label)
                 ela = self.trans_label(ela)
             
-            return image, label, ela
+            return image, label, ela, true_cls_label
     
 
 def get_data_paths(dataset_path):

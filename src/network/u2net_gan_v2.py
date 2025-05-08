@@ -7,9 +7,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
 
-from src.network.modules import CBAM, FrequencyModule, TextureModule, \
-                            AttentionGate, AdaptiveFusion, TripletAttention, PyramidPoolingModule, \
-                            AttentionGateV2, EncodeELA
+from src.network.modules import CBAM, TripletAttention, PyramidPoolingModule, \
+                            AttentionGateV2, EncodeELA, Classifier
 from src.network.backbone_u2_net import *
 
 ## upsample tensor 'src' to have the same spatial size with tensor 'tar'
@@ -90,6 +89,7 @@ class U2NetGanV2(nn.Module):
         self.side6 = nn.Conv2d(512,out_ch,3,padding=1)
 
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
+        self.classifier = Classifier(num_classes=1)
 
     def forward(self,x,ela):
         #--------------------encode------------------------
@@ -127,6 +127,9 @@ class U2NetGanV2(nn.Module):
         
         #-----------------------ela-----------------------
         ela1, ela2, ela3, ela4, ela5 = self.encode_ela(ela)
+        
+        #--------------------classifier-------------------
+        pred = self.classifier(torch.cat((hx6, ela5), 1))
         
         #------------------attention gate-----------------
         attn5 = self.gate1(hx5, ela5)
@@ -169,6 +172,6 @@ class U2NetGanV2(nn.Module):
         d6 = self.side6(hx6)
         d6 = _upsample_like(d6,d1)
 
-        d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6),1))
+        d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6), 1))
 
-        return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
+        return F.sigmoid(d0), pred

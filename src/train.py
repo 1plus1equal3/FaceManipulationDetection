@@ -6,10 +6,6 @@ import argparse
 sys.path.append(os.getcwd())
 
 import torch
-import torch.distributed as dist
-import torch.nn as nn
-import torch.optim as optim
-from torch.nn.parallel import DistributedDataParallel as DDP
 from tqdm import tqdm
 
 from src.data.dataloader import get_dataloader
@@ -92,36 +88,52 @@ def main():
     #         print(f"loss_seg_train: {total_loss_seg/len(train_real_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_real_loader):.4f}") 
                 
     # phase 2: train with fake image
-    epochs = config['model']['epoch']
     best_loss_seg = 1e6
     count = 0
-    for epoch in range(50):
+    for epoch in tqdm(range(config['model']['epoch'])):
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
+        total_loss_cls = 0.0
+        true_preds = 0
+        total = 0
 
-        for (input, true_mask, ela) in train_combined_loader:
-            fmd_v2.set_input(inputs=input, labels=true_mask, ela=ela)
-            loss_seg = fmd_v2.optimize_parameters()
+        for (input, true_mask, ela, true_label) in train_combined_loader:
+            fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+            loss_seg, loss_cls = fmd_v2.optimize_parameters()
             
             # total loss
             total_loss_seg += loss_seg.item()
+            total_loss_cls += loss_cls.item()
+            
+            true_pred, num_image = fmd_v2.get_num_true_pred_images()
+            true_preds += true_pred
+            total += num_image
             
         # eval
         # visualize some sample in test loader
         total_loss_seg_val = 0.0
+        total_loss_cls_val = 0.0
         total_psnr = 0.0
         total_ssim = 0.0
+        true_preds_val = 0
+        total_val = 0
         with torch.no_grad():
-            for i, (input, true_mask, ela) in enumerate(test_combined_loader):
-                fmd_v2.set_input(inputs=input, labels=true_mask, ela=ela)
-                pred_mask, _, _, _, _, _, _ = fmd_v2()
+            for i, (input, true_mask, ela, true_label) in enumerate(test_combined_loader):
+                fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+                pred_mask, pred_label = fmd_v2()
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
                     visualize_results(input, ela, true_mask, pred_mask, args.save_results, epoch+1, text='phase_2')
                 
-                # segmemtation loss
-                loss = fmd_v2.calculate_loss(pred_mask, true_mask)
-                total_loss_seg_val += loss.item()
+                # loss
+                loss_seg, loss_cls = fmd_v2.get_loss()
+                total_loss_seg_val += loss_seg.item()
+                total_loss_cls_val += loss_cls.item()
+                
+                # accuracy
+                true_pred, num_image = fmd_v2.get_num_true_pred_images()
+                true_preds_val += true_pred
+                total_val += num_image
                 
                 # psnr
                 psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
@@ -131,8 +143,17 @@ def main():
                 ssim = ssim_batch(pred_mask, true_mask)
                 total_ssim += ssim.item()
         
-        print(f"Epoch: {epoch + args.resume_epoch + 1}\nloss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\nloss_seg_val: {total_loss_seg_val/len(train_combined_loader):.4f}\n\
-            psnr: {total_psnr/len(test_combined_loader):.4f}\nssim: {total_ssim/len(test_combined_loader):.4f}\n")
+        print(
+            f"Epoch: {epoch + args.resume_epoch + 1}\n"
+            f"loss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\n"
+            f"loss_seg_val: {total_loss_seg_val/len(train_combined_loader):.4f}\n"
+            f"loss_cls_train: {total_loss_cls/len(test_combined_loader):.4f}\n"
+            f"acc_train: {true_preds/total:.4f}\n"
+            f"loss_cls_val: {total_loss_cls_val/len(test_combined_loader):.4f}\n"
+            f"acc_val: {true_preds_val/total_val:.4f}\n"
+            f"psnr: {total_psnr/len(test_combined_loader):.4f}\n"
+            f"ssim: {total_ssim/len(test_combined_loader):.4f}"
+        )
         
         # Early Stopping
         if total_loss_seg_val < best_loss_seg:

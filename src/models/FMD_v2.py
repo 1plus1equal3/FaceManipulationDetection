@@ -42,20 +42,21 @@ class FMD_v2(nn.Module):
         
         # loss function
         self.criterion_segment = nn.L1Loss()
+        self.criterion_cls = nn.BCEWithLogitsLoss()
         # self.criterion_rec = VGG19PerceptureLoss()
         
     def forward(self):
         # get output of u2net-gan
-        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6 = self.u2net_gan_v2(self.inputs, self.ela)
+        self.d0, self.pred_label = self.u2net_gan_v2(self.inputs, self.ela)
 
-        return self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6
+        return self.d0, self.pred_label
         
-    def set_input(self, inputs, labels, ela=None, real_images=None, input_is_real=None):
+    def set_input(self, inputs, segment_labels, ela=None, cls_labels=None, real_images=None):
         self.inputs = inputs.to(self.device)
-        self.labels = labels.to(self.device)
+        self.segment_labels = segment_labels.to(self.device)
         self.ela = ela.to(self.device)
+        self.cls_labels = cls_labels.to(self.device)
         self.real_images = real_images.to(self.device) if real_images is not None else real_images
-        self.input_is_real = input_is_real
         
     def set_requires_grad(self, nets, requires_grad=True):
         if not isinstance(nets, list):
@@ -66,24 +67,21 @@ class FMD_v2(nn.Module):
                     param.requires_grad = requires_grad
             
     
-    def backward_u2net_gan_v2(self, lambda_seg=0.1):
+    def backward_u2net_gan_v2(self, lambda_seg=0.9):
         """ calculate loss for u2net-gan
         """
         
         # segmentation loss
-        loss_d0 = self.criterion_segment(self.d0, self.labels)
-        loss_d1 = self.criterion_segment(self.d1, self.labels)
-        loss_d2 = self.criterion_segment(self.d2, self.labels)
-        loss_d3 = self.criterion_segment(self.d3, self.labels)
-        loss_d4 = self.criterion_segment(self.d4, self.labels)
-        loss_d5 = self.criterion_segment(self.d5, self.labels)
-        loss_d6 = self.criterion_segment(self.d6, self.labels)
+        self.loss_seg = self.criterion_segment(self.d0, self.segment_labels)
         
-        loss_seg = loss_d0 + loss_d1 + loss_d2 + loss_d3 + loss_d4 + loss_d5 + loss_d6
+        # classification loss
+        self.loss_cls = self.criterion_cls(self.pred_label, self.cls_labels)
 
-        loss_seg.backward()
+        # combine loss
+        total_loss = self.loss_seg * lambda_seg + (1 - lambda_seg) * self.loss_cls
+        total_loss.backward()
         
-        return loss_seg
+        return self.loss_seg * lambda_seg, (1 - lambda_seg) * self.loss_cls
     
     
     def optimize_parameters(self):
@@ -91,14 +89,20 @@ class FMD_v2(nn.Module):
         self.forward()
         # train u2net-gan
         self.optimizer_u2net_gan_v2.zero_grad()
-        loss_seg = self.backward_u2net_gan_v2()
+        self.loss_seg, self.loss_cls = self.backward_u2net_gan_v2()
         self.optimizer_u2net_gan_v2.step()
         
-        return loss_seg
+        return self.loss_seg, self.loss_cls
     
-    def calculate_loss(self, pred, gt):
-        pred = pred.to(self.device)
-        gt = gt.to(self.device)
+    def get_loss(self):
+        return self.loss_seg, self.loss_cls
+    
+    def get_num_true_pred_images(self, threshold=0.5):
+        preds = (self.pred_label > threshold).float()
+        labels = self.cls_labels
         
-        loss = self.criterion_segment(pred, gt)
-        return loss
+        if preds.shape != labels.shape:
+            labels = labels.view_as(preds)
+        correct = (preds == labels).sum().item()
+        total = labels.numel()
+        return correct, total
