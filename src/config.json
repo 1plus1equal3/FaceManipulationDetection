@@ -1,7 +1,7 @@
 {
     "model":
     {
-        "epoch": 100,
+        "epoch": 60,
         "lr": 0.003
     },
     "datasets":
