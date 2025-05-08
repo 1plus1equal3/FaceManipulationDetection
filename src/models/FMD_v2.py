@@ -42,7 +42,7 @@ class FMD_v2(nn.Module):
         
         # loss function
         self.criterion_segment = nn.L1Loss()
-        self.criterion_cls = nn.BCELoss()
+        self.criterion_cls = nn.BCEWithLogitsLoss()
         # self.criterion_rec = VGG19PerceptureLoss()
         
     def forward(self):
@@ -55,7 +55,7 @@ class FMD_v2(nn.Module):
         self.inputs = inputs.to(self.device)
         self.segment_labels = segment_labels.to(self.device)
         self.ela = ela.to(self.device)
-        self.cls_labels = cls_labels
+        self.cls_labels = cls_labels.to(self.device)
         self.real_images = real_images.to(self.device) if real_images is not None else real_images
         
     def set_requires_grad(self, nets, requires_grad=True):
@@ -97,8 +97,12 @@ class FMD_v2(nn.Module):
     def get_loss(self):
         return self.loss_seg, self.loss_cls
     
-    def get_num_true_pred_images(self):
-        true_preds = (self.pred_label == self.cls_labels).sum().item()
-        total = len(self.cls_labels)
+    def get_num_true_pred_images(self, threshold=0.5):
+        preds = (self.pred_label > threshold).float()
+        labels = self.cls_labels
         
-        return true_preds, total
+        if preds.shape != labels.shape:
+            labels = labels.view_as(preds)
+        correct = (preds == labels).sum().item()
+        total = labels.numel()
+        return correct, total
