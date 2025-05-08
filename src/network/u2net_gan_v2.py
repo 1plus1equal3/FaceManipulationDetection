@@ -89,6 +89,7 @@ class U2NetGanV2(nn.Module):
         self.side6 = nn.Conv2d(512,out_ch,3,padding=1)
 
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
+        self.classifier = Classifier(num_classes=1)
 
     def forward(self,x,ela):
         #--------------------encode------------------------
@@ -128,7 +129,7 @@ class U2NetGanV2(nn.Module):
         ela1, ela2, ela3, ela4, ela5 = self.encode_ela(ela)
         
         #--------------------classifier-------------------
-        self.clasifier = Classifier(num_classes=2)
+        pred = self.classifier(torch.cat((hx6, ela5), 1))
         
         #------------------attention gate-----------------
         attn5 = self.gate1(hx5, ela5)
@@ -172,7 +173,5 @@ class U2NetGanV2(nn.Module):
         d6 = _upsample_like(d6,d1)
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6), 1))
-        
-        pred = self.clasifier(torch.cat((hx6, ela5), 1))
 
         return F.sigmoid(d0), pred
