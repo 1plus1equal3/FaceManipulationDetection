@@ -7,3 +7,4 @@ from .triplet_attention import TripletAttention
 from .pyramid_pooling import PyramidPoolingModule
 from .ela import EncodeELA
 from .attention_gate_v2 import AttentionGateV2
+from .classifier import Classifier
