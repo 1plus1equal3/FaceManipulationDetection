@@ -90,7 +90,7 @@ def main():
     # phase 2: train with fake image
     best_loss_seg = 1e6
     count = 0
-    for epoch in range(config['model']['epoch']):
+    for epoch in tqdm(range(config['model']['epoch'])):
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
         total_loss_cls = 0.0
@@ -98,7 +98,7 @@ def main():
         total = 0
 
         for (input, true_mask, ela, true_label) in train_combined_loader:
-            fmd_v2.set_input(inputs=input, segment_label=true_mask, ela=ela, cls_labels=true_label)
+            fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
             loss_seg, loss_cls = fmd_v2.optimize_parameters()
             
             # total loss
@@ -143,11 +143,17 @@ def main():
                 ssim = ssim_batch(pred_mask, true_mask)
                 total_ssim += ssim.item()
         
-        print(f"Epoch: {epoch + args.resume_epoch + 1}\nloss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\nloss_seg_val: {total_loss_seg_val/len(train_combined_loader):.4f}\n\
-                loss_cls_train:{total_loss_cls/len(test_combined_loader):.4f}\nacc_train: {true_preds/total:.4f}\n\
-                loss_cls_val:{total_loss_cls_val/len(test_combined_loader):.4f}\nacc_val: {true_preds_val/total_val:.4f}\n\
-                psnr: {total_psnr/len(test_combined_loader):.4f}\nssim: {total_ssim/len(test_combined_loader):.4f}\n\
-                ")
+        print(
+            f"Epoch: {epoch + args.resume_epoch + 1}\n"
+            f"loss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\n"
+            f"loss_seg_val: {total_loss_seg_val/len(train_combined_loader):.4f}\n"
+            f"loss_cls_train: {total_loss_cls/len(test_combined_loader):.4f}\n"
+            f"acc_train: {true_preds/total:.4f}\n"
+            f"loss_cls_val: {total_loss_cls_val/len(test_combined_loader):.4f}\n"
+            f"acc_val: {true_preds_val/total_val:.4f}\n"
+            f"psnr: {total_psnr/len(test_combined_loader):.4f}\n"
+            f"ssim: {total_ssim/len(test_combined_loader):.4f}"
+        )
         
         # Early Stopping
         if total_loss_seg_val < best_loss_seg:
