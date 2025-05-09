@@ -5,13 +5,21 @@ import torch.nn.functional as F
 from PIL import Image, ImageChops, ImageEnhance
 from io import BytesIO
 
-def visualize_results(true_images, rec_images, true_masks, pred_masks, save_folder, epoch, text='phase_1'):
+def visualize_results(true_images, rec_images, true_masks, pred_masks,\
+    d1, d2, d3, d4, d5, d6, save_folder, epoch, text='phase_2'):
+    
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
     true_masks = true_masks.cpu().numpy()
     pred_masks = pred_masks.cpu().numpy()
+    d1 = d1.cpu().numpy()
+    d2 = d2.cpu().numpy()
+    d3 = d3.cpu().numpy()
+    d4 = d4.cpu().numpy()
+    d5 = d5.cpu().numpy()
+    d6 = d6.cpu().numpy()
     
-    fig, axes = plt.subplots(32, 4, figsize=(8, 64))
+    fig, axes = plt.subplots(32, 10, figsize=(20, 610))
     axes = axes.flatten()
     
     for i in range(32):
@@ -23,22 +31,52 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks, save_fold
         
         true_mask = np.transpose(true_masks[i], (1, 2, 0))
         pred_mask = np.transpose(pred_masks[i], (1, 2, 0))
+        d1 = np.transpose(d1[i], (1, 2, 0))
+        d2 = np.transpose(d2[i], (1, 2, 0))
+        d3 = np.transpose(d3[i], (1, 2, 0))
+        d4 = np.transpose(d4[i], (1, 2, 0))
+        d5 = np.transpose(d5[i], (1, 2, 0))
+        d6 = np.transpose(d6[i], (1, 2, 0))
         
-        axes[4*i].imshow(true_image)
-        axes[4*i].set_title(f"Input image")
-        axes[4*i].axis("off")
+        axes[10*i].imshow(true_image)
+        axes[10*i].set_title(f"Input image")
+        axes[10*i].axis("off")
         
-        axes[4*i+1].imshow(rec_image)
-        axes[4*i+1].set_title(f"Rec image")
-        axes[4*i+1].axis("off")
+        axes[10*i+1].imshow(rec_image)
+        axes[10*i+1].set_title(f"Rec image")
+        axes[10*i+1].axis("off")
         
-        axes[4*i+2].imshow(true_mask, cmap='jet')
-        axes[4*i+2].set_title(f"True mask")
-        axes[4*i+2].axis("off")
+        axes[10*i+2].imshow(true_mask, cmap='jet')
+        axes[10*i+2].set_title(f"True mask")
+        axes[10*i+2].axis("off")
         
-        axes[4*i+3].imshow(pred_mask, cmap='jet')
-        axes[4*i+3].set_title(f"Predict mask")
-        axes[4*i+3].axis("off")
+        axes[10*i+3].imshow(pred_mask, cmap='jet')
+        axes[10*i+3].set_title(f"Predict mask")
+        axes[10*i+3].axis("off")
+        
+        axes[10*i+4].imshow(d1, cmap='jet')
+        axes[10*i+4].set_title(f"d1")
+        axes[10*i+4].axis("off")
+        
+        axes[10*i+5].imshow(d2, cmap='jet')
+        axes[10*i+5].set_title(f"d2")
+        axes[10*i+5].axis("off")
+        
+        axes[10*i+6].imshow(d3, cmap='jet')
+        axes[10*i+6].set_title(f"d3")
+        axes[10*i+6].axis("off")
+        
+        axes[10*i+7].imshow(d4, cmap='jet')
+        axes[10*i+7].set_title(f"d4")
+        axes[10*i+7].axis("off")
+        
+        axes[10*i+8].imshow(d5, cmap='jet')
+        axes[10*i+8].set_title(f"d5")
+        axes[10*i+8].axis("off")
+        
+        axes[10*i+9].imshow(d6, cmap='jet')
+        axes[10*i+9].set_title(f"d6")
+        axes[10*i+9].axis("off")
     
     plt.tight_layout()
     plt.savefig(f'{save_folder}/{text}_{epoch}_v2.png')
