@@ -122,7 +122,7 @@ class U2NetGanV2(nn.Module):
 
         #stage 6
         hx6 = self.stage6(hx)
-        hx6 = self.pyramid(hx6)         # pyramid pooling
+        # hx6 = self.pyramid(hx6)         # pyramid pooling
         hx6up = _upsample_like(hx6,hx5)
         
         #-----------------------ela-----------------------
