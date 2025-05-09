@@ -27,14 +27,6 @@ class U2NetGanV2(nn.Module):
     def __init__(self,in_ch=3,out_ch=1):
         super(U2NetGanV2,self).__init__()
         
-        # Encode ELA
-        self.encode_ela = EncodeELA()
-        self.gate1 = AttentionGateV2(512)
-        self.gate2 = AttentionGateV2(512)
-        self.gate3 = AttentionGateV2(256)
-        self.gate4 = AttentionGateV2(128)
-        self.gate5 = AttentionGateV2(64)
-        
         # U2 Net
         self.stage1 = RSU7(in_ch,32,64)
         # Triplet attention
@@ -89,9 +81,8 @@ class U2NetGanV2(nn.Module):
         self.side6 = nn.Conv2d(512,out_ch,3,padding=1)
 
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
-        self.classifier = Classifier(num_classes=1)
 
-    def forward(self,x,ela):
+    def forward(self,x):
         #--------------------encode------------------------
         hx = x
 
@@ -124,34 +115,21 @@ class U2NetGanV2(nn.Module):
         hx6 = self.stage6(hx)
         # hx6 = self.pyramid(hx6)         # pyramid pooling
         hx6up = _upsample_like(hx6,hx5)
-        
-        #-----------------------ela-----------------------
-        ela1, ela2, ela3, ela4, ela5 = self.encode_ela(ela)
-        
-        #--------------------classifier-------------------
-        pred = self.classifier(torch.cat((hx6, ela5), 1))
-        
-        #------------------attention gate-----------------
-        attn5 = self.gate1(hx5, ela5)
-        attn4 = self.gate2(hx4, ela4)
-        attn3 = self.gate3(hx3, ela3)
-        attn2 = self.gate4(hx2, ela2)
-        attn1 = self.gate5(hx1, ela1)
 
         #-------------------- decoder --------------------
-        hx5d = self.stage5d(torch.cat((hx6up,attn5),1))
+        hx5d = self.stage5d(torch.cat((hx6up,hx5),1))
         hx5dup = _upsample_like(hx5d,hx4)
 
-        hx4d = self.stage4d(torch.cat((hx5dup,attn4),1))
+        hx4d = self.stage4d(torch.cat((hx5dup,hx4),1))
         hx4dup = _upsample_like(hx4d,hx3)
 
-        hx3d = self.stage3d(torch.cat((hx4dup,attn3),1))
+        hx3d = self.stage3d(torch.cat((hx4dup,hx3),1))
         hx3dup = _upsample_like(hx3d,hx2)
 
-        hx2d = self.stage2d(torch.cat((hx3dup,attn2),1))
+        hx2d = self.stage2d(torch.cat((hx3dup,hx2),1))
         hx2dup = _upsample_like(hx2d,hx1)
 
-        hx1d = self.stage1d(torch.cat((hx2dup,attn1),1))
+        hx1d = self.stage1d(torch.cat((hx2dup,hx1),1))
 
 
         # side output
@@ -174,4 +152,4 @@ class U2NetGanV2(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6), 1))
 
-        return F.sigmoid(d0), pred
+        return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
