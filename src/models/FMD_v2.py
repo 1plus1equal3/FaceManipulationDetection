@@ -54,8 +54,8 @@ class FMD_v2(nn.Module):
     def set_input(self, inputs, segment_labels, ela=None, cls_labels=None, real_images=None):
         self.inputs = inputs.to(self.device)
         self.segment_labels = segment_labels.to(self.device)
-        self.ela = ela.to(self.device)
-        self.cls_labels = cls_labels.to(self.device)
+        self.ela = ela.to(self.device) if ela is not None else ela
+        self.cls_labels = cls_labels.to(self.device) if cls_labels is not None else cls_labels
         self.real_images = real_images.to(self.device) if real_images is not None else real_images
         
     def set_requires_grad(self, nets, requires_grad=True):
