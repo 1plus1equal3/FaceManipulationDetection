@@ -6,20 +6,20 @@ from PIL import Image, ImageChops, ImageEnhance
 from io import BytesIO
 
 def visualize_results(true_images, rec_images, true_masks, pred_masks,\
-    d1, d2, d3, d4, d5, d6, save_folder, epoch, text='phase_2'):
+    d1s, d2s, d3s, d4s, d5s, d6s, save_folder, epoch, text='phase_2'):
     
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
     true_masks = true_masks.cpu().numpy()
     pred_masks = pred_masks.cpu().numpy()
-    d1 = d1.cpu().numpy()
-    d2 = d2.cpu().numpy()
-    d3 = d3.cpu().numpy()
-    d4 = d4.cpu().numpy()
-    d5 = d5.cpu().numpy()
-    d6 = d6.cpu().numpy()
+    d1s = d1s.cpu().numpy()
+    d2s = d2s.cpu().numpy()
+    d3s = d3s.cpu().numpy()
+    d4s = d4s.cpu().numpy()
+    d5s = d5s.cpu().numpy()
+    d6s = d6s.cpu().numpy()
     
-    fig, axes = plt.subplots(32, 10, figsize=(20, 610))
+    fig, axes = plt.subplots(32, 10, figsize=(20, 64))
     axes = axes.flatten()
     
     for i in range(32):
@@ -31,12 +31,12 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks,\
         
         true_mask = np.transpose(true_masks[i], (1, 2, 0))
         pred_mask = np.transpose(pred_masks[i], (1, 2, 0))
-        d1 = np.transpose(d1[i], (1, 2, 0))
-        d2 = np.transpose(d2[i], (1, 2, 0))
-        d3 = np.transpose(d3[i], (1, 2, 0))
-        d4 = np.transpose(d4[i], (1, 2, 0))
-        d5 = np.transpose(d5[i], (1, 2, 0))
-        d6 = np.transpose(d6[i], (1, 2, 0))
+        d1 = np.transpose(d1s[i], (1, 2, 0))
+        d2 = np.transpose(d2s[i], (1, 2, 0))
+        d3 = np.transpose(d3s[i], (1, 2, 0))
+        d4 = np.transpose(d4s[i], (1, 2, 0))
+        d5 = np.transpose(d5s[i], (1, 2, 0))
+        d6 = np.transpose(d6s[i], (1, 2, 0))
         
         axes[10*i].imshow(true_image)
         axes[10*i].set_title(f"Input image")
