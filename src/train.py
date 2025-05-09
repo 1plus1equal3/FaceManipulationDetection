@@ -93,47 +93,30 @@ def main():
     for epoch in tqdm(range(config['model']['epoch'])):
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
-        total_loss_cls = 0.0
-        true_preds = 0
-        total = 0
 
         for (input, true_mask, ela, true_label) in train_combined_loader:
-            fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-            loss_seg, loss_cls = fmd_v2.optimize_parameters()
+            fmd_v2.set_input(inputs=input, segment_labels=true_mask)
+            loss_seg = fmd_v2.optimize_parameters()
             
             # total loss
             total_loss_seg += loss_seg.item()
-            total_loss_cls += loss_cls.item()
-            
-            true_pred, num_image = fmd_v2.get_num_true_pred_images()
-            true_preds += true_pred
-            total += num_image
             
         # eval
         # visualize some sample in test loader
         total_loss_seg_val = 0.0
-        total_loss_cls_val = 0.0
         total_psnr = 0.0
         total_ssim = 0.0
-        true_preds_val = 0
-        total_val = 0
         with torch.no_grad():
             for i, (input, true_mask, ela, true_label) in enumerate(test_combined_loader):
-                fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-                pred_mask, pred_label = fmd_v2()
+                fmd_v2.set_input(inputs=input, segment_labels=true_mask)
+                pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
-                    visualize_results(input, ela, true_mask, pred_mask, args.save_results, epoch+1, text='phase_2')
+                    visualize_results(input, input, true_mask, pred_mask, d1, d2, d3, d4, d5, d6, args.save_results, epoch+1, text='phase_2')
                 
                 # loss
-                loss_seg, loss_cls = fmd_v2.get_loss()
+                loss_seg = fmd_v2.calculate_loss(pred_mask, true_mask)
                 total_loss_seg_val += loss_seg.item()
-                total_loss_cls_val += loss_cls.item()
-                
-                # accuracy
-                true_pred, num_image = fmd_v2.get_num_true_pred_images()
-                true_preds_val += true_pred
-                total_val += num_image
                 
                 # psnr
                 psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
@@ -147,10 +130,6 @@ def main():
             f"Epoch: {epoch + args.resume_epoch + 1}\n"
             f"loss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\n"
             f"loss_seg_val: {total_loss_seg_val/len(train_combined_loader):.4f}\n"
-            f"loss_cls_train: {total_loss_cls/len(test_combined_loader):.4f}\n"
-            f"acc_train: {true_preds/total:.4f}\n"
-            f"loss_cls_val: {total_loss_cls_val/len(test_combined_loader):.4f}\n"
-            f"acc_val: {true_preds_val/total_val:.4f}\n"
             f"psnr: {total_psnr/len(test_combined_loader):.4f}\n"
             f"ssim: {total_ssim/len(test_combined_loader):.4f}"
         )
@@ -166,6 +145,7 @@ def main():
         elif abs(total_loss_seg_val - best_loss_seg) < 0.001 or (total_loss_seg_val - best_loss_seg) > 0.01:
             count += 1
             if count == 5:
+                print(f"Early stopping at epoch {epoch + args.resume_epoch + 1}")
                 break
         
 if __name__ == '__main__':
