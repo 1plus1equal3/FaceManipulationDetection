@@ -10,6 +10,7 @@ from torchsummary import summary
 from src.network.modules import CBAM, FrequencyModule, TextureModule, \
                             AttentionGate, AdaptiveFusion, TripletAttention, PyramidPoolingModule
 from src.network.backbone_u2_net import *
+from src.utils import init_weights
 
 ## upsample tensor 'src' to have the same spatial size with tensor 'tar'
 def _upsample_like(src,tar):
@@ -19,7 +20,10 @@ def _upsample_like(src,tar):
     return src
 
 def init_u2net_gan_v2():
-    return U2NetGanV2()
+    model = U2NetGanV2()
+    # init weight
+    init_weights(model)
+    return model
 
 
 ##### U^2-Net ####
