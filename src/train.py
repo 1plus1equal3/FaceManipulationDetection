@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import argparse
+import random
 
 sys.path.append(os.getcwd())
 
@@ -18,6 +19,17 @@ from src.utils.util import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    import os
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
 def load_config(config_path):
     with open(config_path, 'r') as f:
         config = json.load(f)
@@ -26,6 +38,10 @@ def load_config(config_path):
 config = load_config('src/config.json')
 
 def main():
+    # random seed
+    set_random_seed(42)
+
+    # parser argument
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', type=str, default='', help='path to your dataset')
     parser.add_argument('--save_results', type=str, default='', help='path to save results')
@@ -88,6 +104,7 @@ def main():
     best_loss_seg = 1e6
     count = 0
     for epoch in tqdm(range(50)):
+        fmd_v2.train()
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
 
@@ -100,6 +117,7 @@ def main():
             
         # eval    
         # visualize some sample in test loader
+        fmd_v2.eval()
         total_loss_seg_val = 0.0
         total_psnr = 0.0
         with torch.no_grad():
