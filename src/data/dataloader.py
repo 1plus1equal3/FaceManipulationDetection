@@ -143,8 +143,8 @@ def get_dataloader(dataset_path, mode='train', is_real=False):
     
     # train model with 30000 fake images and 3000 real images
     real_image_paths = real_image_paths[:3000]
-    mask_image_paths = mask_image_paths[:30000]
-    fake_image_paths = fake_image_paths[:30000]
+    mask_image_paths = mask_image_paths[:20000]
+    fake_image_paths = fake_image_paths[:20000]
 
     # train test split
     train_real_image_paths, val_real_image_paths = train_test_split(real_image_paths, test_size=0.3, random_state=42)
