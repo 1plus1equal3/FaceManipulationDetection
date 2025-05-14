@@ -37,42 +37,24 @@ class U2NetGanV2(nn.Module):
         
         # U2 Net
         self.stage1 = RSU7(in_ch,32,64)
-        # Triplet attention
-        self.triplet1 = TripletAttention(no_spatial=False)
         self.pool12 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
         
         
         self.stage2 = RSU6(64,32,128)
-        # CBAM
-        self.cbam2 = CBAM(128)
-        # Triplet attention
-        self.triplet2 = TripletAttention(no_spatial=False)
         self.pool23 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
 
         self.stage3 = RSU5(128,64,256)
-        # CBAM
-        self.cbam3 = CBAM(256)
-        # Triplet Attention
-        self.triplet3 = TripletAttention(no_spatial=False)
         self.pool34 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage4 = RSU4(256,128,512)
-        # CBAM
-        self.cbam4 = CBAM(512)
-        # Triplet Attention
-        self.triplet4 = TripletAttention(no_spatial=False)
         self.pool45 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage5 = RSU4F(512,256,512)
-        # Triplet Attention
-        self.triplet5 = TripletAttention(no_spatial=False)
         
         self.pool56 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage6 = RSU4F(512,256,512)
-        # Pyramid Pooling
-        self.pyramid = PyramidPoolingModule(512, 512)
 
         # decoder
         self.stage5d = RSU4F(1024,256,512)
@@ -89,7 +71,7 @@ class U2NetGanV2(nn.Module):
         self.side6 = nn.Conv2d(512,out_ch,3,padding=1)
 
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
-        self.classifier = Classifier(num_classes=1)
+        self.classifier = Classifier(num_classes=2)
 
     def forward(self,x,ela):
         #--------------------encode------------------------
@@ -97,32 +79,26 @@ class U2NetGanV2(nn.Module):
 
         #stage 1
         hx1 = self.stage1(hx)
-        hx1 = self.triplet1(hx1)        # triplet attention
         hx = self.pool12(hx1)
 
         #stage 2
         hx2 = self.stage2(hx)
-        hx2 = self.triplet2(hx2)        # triplet attention
         hx = self.pool23(hx2)
 
         #stage 3
         hx3 = self.stage3(hx)
-        hx3 = self.triplet3(hx3)        # triplet attention
         hx = self.pool34(hx3)
 
         #stage 4
         hx4 = self.stage4(hx)
-        hx4 = self.triplet4(hx4)        # triplet attention
         hx = self.pool45(hx4)
 
         #stage 5
         hx5 = self.stage5(hx)
-        hx5 = self.triplet5(hx5)        # triplet attention
         hx = self.pool56(hx5)
 
         #stage 6
         hx6 = self.stage6(hx)
-        hx6 = self.pyramid(hx6)         # pyramid pooling
         hx6up = _upsample_like(hx6,hx5)
         
         #-----------------------ela-----------------------
@@ -155,7 +131,7 @@ class U2NetGanV2(nn.Module):
 
 
         # side output
-        d1 = self.side1(hx1d)
+        d1 = self.side1(hx1d) 
 
         d2 = self.side2(hx2d)
         d2 = _upsample_like(d2,d1)
@@ -174,4 +150,4 @@ class U2NetGanV2(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6), 1))
 
-        return F.sigmoid(d0), pred
+        return torch.sigmoid(d0), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6), pred
