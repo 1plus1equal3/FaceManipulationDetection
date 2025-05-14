@@ -36,20 +36,20 @@ class FMD_v2(nn.Module):
         
         # define for training
         # optim
-        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=config['model']['lr'], betas=(0.9, 0.999))
+        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=0.005, betas=(0.9, 0.999))
         
         # scheduler
         
         # loss function
         self.criterion_segment = nn.L1Loss()
-        self.criterion_cls = nn.BCEWithLogitsLoss()
+        self.criterion_cls = nn.CrossEntropyLoss()
         # self.criterion_rec = VGG19PerceptureLoss()
         
     def forward(self):
         # get output of u2net-gan
-        self.d0, self.pred_label = self.u2net_gan_v2(self.inputs, self.ela)
+        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6, self.pred_label = self.u2net_gan_v2(self.inputs, self.ela)
 
-        return self.d0, self.pred_label
+        return self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6, self.pred_label
         
     def set_input(self, inputs, segment_labels, ela=None, cls_labels=None, real_images=None):
         self.inputs = inputs.to(self.device)
@@ -67,24 +67,33 @@ class FMD_v2(nn.Module):
                     param.requires_grad = requires_grad
             
     
-    def backward_u2net_gan_v2(self, lambda_seg=0.9):
+    def backward_u2net_gan_v2(self, training=True, lambda_seg=0.9):
         """ calculate loss for u2net-gan
         """
         
         # segmentation loss
-        self.loss_seg = self.criterion_segment(self.d0, self.segment_labels)
+        loss_seg_d0 = self.criterion_segment(self.d0, self.segment_labels)
+        loss_seg_d1 = self.criterion_segment(self.d1, self.segment_labels)
+        loss_seg_d2 = self.criterion_segment(self.d2, self.segment_labels)
+        loss_seg_d3 = self.criterion_segment(self.d3, self.segment_labels)
+        loss_seg_d4 = self.criterion_segment(self.d4, self.segment_labels)
+        loss_seg_d5 = self.criterion_segment(self.d5, self.segment_labels)
+        loss_seg_d6 = self.criterion_segment(self.d6, self.segment_labels)
+
+        self.loss_seg = loss_seg_d0 + loss_seg_d1 + loss_seg_d2 + loss_seg_d3 + loss_seg_d4 + loss_seg_d5 + loss_seg_d6
         
         # classification loss
         self.loss_cls = self.criterion_cls(self.pred_label, self.cls_labels)
 
         # combine loss
         total_loss = self.loss_seg * lambda_seg + (1 - lambda_seg) * self.loss_cls
-        total_loss.backward()
+        if training:
+            total_loss.backward()
         
         return self.loss_seg * lambda_seg, (1 - lambda_seg) * self.loss_cls
     
     
-    def optimize_parameters(self):
+    def optimize_parameters(self): 
         # pass data into network
         self.forward()
         # train u2net-gan
@@ -98,11 +107,10 @@ class FMD_v2(nn.Module):
         return self.loss_seg, self.loss_cls
     
     def get_num_true_pred_images(self, threshold=0.5):
-        preds = (self.pred_label > threshold).float()
-        labels = self.cls_labels
-        
-        if preds.shape != labels.shape:
-            labels = labels.view_as(preds)
-        correct = (preds == labels).sum().item()
-        total = labels.numel()
+        predicted_classes = torch.argmax(self.pred_label, dim=1)  # shape: [N]
+
+        true_classes = self.cls_labels.view(-1)
+    
+        correct = (predicted_classes == true_classes).sum().item()
+        total = true_classes.size(0)
         return correct, total
