@@ -5,13 +5,21 @@ import torch.nn.functional as F
 from PIL import Image, ImageChops, ImageEnhance
 from io import BytesIO
 
-def visualize_results(true_images, rec_images, true_masks, pred_masks, save_folder, epoch, text='phase_1'):
+def visualize_results(true_images, rec_images, true_masks, pred_masks,\
+    d1s, d2s, d3s, d4s, d5s, d6s, save_folder, epoch, text='phase_2'):
+    
     true_images = true_images.cpu().numpy()
     rec_images = rec_images.cpu().numpy()
     true_masks = true_masks.cpu().numpy()
     pred_masks = pred_masks.cpu().numpy()
+    d1s = d1s.cpu().numpy()
+    d2s = d2s.cpu().numpy()
+    d3s = d3s.cpu().numpy()
+    d4s = d4s.cpu().numpy()
+    d5s = d5s.cpu().numpy()
+    d6s = d6s.cpu().numpy()
     
-    fig, axes = plt.subplots(32, 4, figsize=(8, 64))
+    fig, axes = plt.subplots(32, 10, figsize=(20, 64))
     axes = axes.flatten()
     
     for i in range(32):
@@ -19,26 +27,56 @@ def visualize_results(true_images, rec_images, true_masks, pred_masks, save_fold
         rec_image = np.transpose(rec_images[i], (1, 2, 0))
         # make sure that rec img in range(0, 1) instead (-1, 1)
         true_image = (true_image + 1) / 2
-        rec_image = (rec_image + 1) / 2
+        # rec_image = (rec_image + 1) / 2
         
         true_mask = np.transpose(true_masks[i], (1, 2, 0))
         pred_mask = np.transpose(pred_masks[i], (1, 2, 0))
+        d1 = np.transpose(d1s[i], (1, 2, 0))
+        d2 = np.transpose(d2s[i], (1, 2, 0))
+        d3 = np.transpose(d3s[i], (1, 2, 0))
+        d4 = np.transpose(d4s[i], (1, 2, 0))
+        d5 = np.transpose(d5s[i], (1, 2, 0))
+        d6 = np.transpose(d6s[i], (1, 2, 0))
         
-        axes[4*i].imshow(true_image)
-        axes[4*i].set_title(f"Input image")
-        axes[4*i].axis("off")
+        axes[10*i].imshow(true_image)
+        axes[10*i].set_title(f"Input image")
+        axes[10*i].axis("off")
         
-        axes[4*i+1].imshow(rec_image)
-        axes[4*i+1].set_title(f"Rec image")
-        axes[4*i+1].axis("off")
+        axes[10*i+1].imshow(rec_image)
+        axes[10*i+1].set_title(f"Ela image")
+        axes[10*i+1].axis("off")
         
-        axes[4*i+2].imshow(true_mask, cmap='jet')
-        axes[4*i+2].set_title(f"True mask")
-        axes[4*i+2].axis("off")
+        axes[10*i+2].imshow(true_mask, cmap='jet')
+        axes[10*i+2].set_title(f"True mask")
+        axes[10*i+2].axis("off")
         
-        axes[4*i+3].imshow(pred_mask, cmap='jet')
-        axes[4*i+3].set_title(f"Predict mask")
-        axes[4*i+3].axis("off")
+        axes[10*i+3].imshow(pred_mask, cmap='jet')
+        axes[10*i+3].set_title(f"Predict mask")
+        axes[10*i+3].axis("off")
+        
+        axes[10*i+4].imshow(d1, cmap='jet')
+        axes[10*i+4].set_title(f"d1")
+        axes[10*i+4].axis("off")
+        
+        axes[10*i+5].imshow(d2, cmap='jet')
+        axes[10*i+5].set_title(f"d2")
+        axes[10*i+5].axis("off")
+        
+        axes[10*i+6].imshow(d3, cmap='jet')
+        axes[10*i+6].set_title(f"d3")
+        axes[10*i+6].axis("off")
+        
+        axes[10*i+7].imshow(d4, cmap='jet')
+        axes[10*i+7].set_title(f"d4")
+        axes[10*i+7].axis("off")
+        
+        axes[10*i+8].imshow(d5, cmap='jet')
+        axes[10*i+8].set_title(f"d5")
+        axes[10*i+8].axis("off")
+        
+        axes[10*i+9].imshow(d6, cmap='jet')
+        axes[10*i+9].set_title(f"d6")
+        axes[10*i+9].axis("off")
     
     plt.tight_layout()
     plt.savefig(f'{save_folder}/{text}_{epoch}_v2.png')
