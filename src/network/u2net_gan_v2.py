@@ -5,10 +5,9 @@ sys.path.append(os.getcwd())
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchsummary import summary
+from torchinfo import summary
 
-from src.network.modules import CBAM, FrequencyModule, TextureModule, \
-                            AttentionGate, AdaptiveFusion, TripletAttention, PyramidPoolingModule
+from src.network.modules import FrequencyModule, TripletAttention, PyramidPoolingModule, DCA
 from src.network.backbone_u2_net import *
 from src.utils import init_weights
 
@@ -31,71 +30,49 @@ class U2NetGanV2(nn.Module):
     def __init__(self,in_ch=3,out_ch=1):
         super(U2NetGanV2,self).__init__()
         
-        # Frequency Module
-        self.frequency = FrequencyModule()
-        
         # U2 Net
         self.stage1 = RSU7(in_ch,32,64)
-        # CBAM
-        self.cbam1 = CBAM(64)
         # Triplet attention
-        self.triplet1 = TripletAttention(no_spatial=False)
-        # Texture Module
-        self.text1 = TextureModule(64)
-        # Adaptive Fusion
-        self.adapt_fusion1 = AdaptiveFusion(64, 64)
-        # Attention Gate
-        self.attn_gate_1 = AttentionGate(64)
+        # self.triplet1 = TripletAttention(no_spatial=False)
         self.pool12 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
         
         
         self.stage2 = RSU6(64,32,128)
-        # CBAM
-        self.cbam2 = CBAM(128)
         # Triplet attention
-        self.triplet2 = TripletAttention(no_spatial=False)
-        # Texture Module
-        self.text2 = TextureModule(128)
-        # Adaptive Fusion
-        self.adapt_fusion2 = AdaptiveFusion(128, 128)
-        # Attention Gate
-        self.attn_gate_2 = AttentionGate(128)
+        # self.triplet2 = TripletAttention(no_spatial=False)
         self.pool23 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
 
         self.stage3 = RSU5(128,64,256)
-        # CBAM
-        self.cbam3 = CBAM(256)
         # Triplet Attention
-        self.triplet3 = TripletAttention(no_spatial=False)
-        # Texture Module
-        self.text3 = TextureModule(256)
-        # Adaptive Fusion
-        self.adapt_fusion3 = AdaptiveFusion(256, 256)
-        # Attention Gate
-        self.attn_gate_3 = AttentionGate(256)
+        # self.triplet3 = TripletAttention(no_spatial=False)
         self.pool34 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage4 = RSU4(256,128,512)
-        # CBAM
-        self.cbam4 = CBAM(512)
         # Triplet Attention
-        self.triplet4 = TripletAttention(no_spatial=False)
-        # # Texture Module
-        # self.text4 = TextureModule(512)
-        # # Adaptive Fusion
-        # self.adapt_fusion1 = AdaptiveFusion(512, 512)
+        # self.triplet4 = TripletAttention(no_spatial=False)
         self.pool45 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage5 = RSU4F(512,256,512)
         # Triplet Attention
-        self.triplet5 = TripletAttention(no_spatial=False)
+        # self.triplet5 = TripletAttention(no_spatial=False)
         
         self.pool56 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage6 = RSU4F(512,256,512)
         # Pyramid Pooling
-        self.pyramid = PyramidPoolingModule(512, 512)
+        # self.pyramid = PyramidPoolingModule(512, 512)
+
+        # Dual Cross Attention
+        self.DCA = DCA(n=1,                                            
+                    features = [64, 128, 256, 512],                                                                                                              
+                    strides=[8, 4, 2, 1],
+                    patch=32,
+                    spatial_att=True,
+                    channel_att=True, 
+                    spatial_head=[4, 4, 4, 4],
+                    channel_head=[1, 1, 1, 1],
+                    ) 
 
         # decoder
         self.stage5d = RSU4F(1024,256,512)
@@ -114,41 +91,41 @@ class U2NetGanV2(nn.Module):
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
 
     def forward(self,x):
-        
-        # frequency module
-        frequency1, frequency2, frequency3 = self.frequency(x)
 
         hx = x
 
         #stage 1
         hx1 = self.stage1(hx)
-        hx1 = self.triplet1(hx1)        # triplet attention
+        # hx1 = self.triplet1(hx1)        # triplet attention
         hx = self.pool12(hx1)
 
         #stage 2
         hx2 = self.stage2(hx)
-        hx2 = self.triplet2(hx2)        # triplet attention
+        # hx2 = self.triplet2(hx2)        # triplet attention
         hx = self.pool23(hx2)
 
         #stage 3
         hx3 = self.stage3(hx)
-        hx3 = self.triplet3(hx3)        # triplet attention
+        # hx3 = self.triplet3(hx3)        # triplet attention
         hx = self.pool34(hx3)
 
         #stage 4
         hx4 = self.stage4(hx)
-        hx4 = self.triplet4(hx4)        # triplet attention
+        # hx4 = self.triplet4(hx4)        # triplet attention
         hx = self.pool45(hx4)
 
         #stage 5
         hx5 = self.stage5(hx)
-        hx5 = self.triplet5(hx5)        # triplet attention
+        # hx5 = self.triplet5(hx5)        # triplet attention
         hx = self.pool56(hx5)
 
         #stage 6
         hx6 = self.stage6(hx)
-        hx6 = self.pyramid(hx6)         # pyramid pooling
+        # hx6 = self.pyramid(hx6)         # pyramid pooling
         hx6up = _upsample_like(hx6,hx5)
+
+        #---------------Dual-Cross-Attention--------------
+        hx1, hx2, hx3, hx4 = self.DCA([hx1, hx2, hx3, hx4])
 
         #-------------------- decoder --------------------
         hx5d = self.stage5d(torch.cat((hx6up,hx5),1))
@@ -186,4 +163,19 @@ class U2NetGanV2(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6),1))
 
-        return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
+        return torch.sigmoid(d0), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+    
+# model = U2NetGanV2()
+# x = torch.randn(2, 3, 256, 256)  # Batch size 1
+# total_params = sum(p.numel() for p in model.parameters())
+# trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+# print(f"Total parameters: {total_params:,}")
+# print(f"Trainable parameters: {trainable_params:,}")
+# with torch.no_grad():
+#     output = model(x)
+#     print("Output type:", type(output))
+#     if isinstance(output, list):
+#         print("Output shapes:", [o.shape for o in output])
+#     else:
+#         print("Output shape:", output[1].shape)
