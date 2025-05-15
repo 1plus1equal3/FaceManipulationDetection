@@ -253,7 +253,7 @@ def get_bald_data(dataset, label):
     bald_dataset_path = []
     bald_label_path = []
     for i, path in enumerate(dataset):
-        if path.split('_')[1] == '1.jpg':
+        if os.path.basename(path).split('_')[1] == '1.jpg':
             bald_dataset_path.append(path)
             bald_label_path.append(label[i])
 
@@ -265,7 +265,7 @@ def get_eyeglass_data(dataset, label):
     eyeglass_dataset_path = []
     eyeglass_label_path = []
     for i, path in enumerate(dataset):
-        if path.split('_')[1] == '7.jpg':
+        if os.path.basename(path).split('_')[1] == '7.jpg':
             eyeglass_dataset_path.append(path)
             eyeglass_label_path.append(label[i])
 
@@ -277,7 +277,7 @@ def get_smile_data(dataset, label):
     smile_dataset_path = []
     smile_label_path = []
     for i, path in enumerate(dataset):
-        if path.split('_')[1] == '9.jpg':
+        if os.path.basename(path).split('_')[1] == '9.jpg':
             smile_dataset_path.append(path)
             smile_label_path.append(label[i])
             
