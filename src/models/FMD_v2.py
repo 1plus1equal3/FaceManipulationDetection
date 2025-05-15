@@ -71,7 +71,7 @@ class FMD_v2(nn.Module):
         loss_d5 = self.criterion_segment(self.d5, self.labels)
         loss_d6 = self.criterion_segment(self.d6, self.labels)
         
-        loss_seg = loss_d0 + loss_d1 + loss_d2 + loss_d3 + loss_d4 + loss_d5 + loss_d6
+        loss_seg = loss_d0 + 0.8 * loss_d1 + 0.2 * (loss_d2 + loss_d3 + loss_d4 + loss_d5 + loss_d6)
 
         loss_seg.backward()
         
