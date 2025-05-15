@@ -123,7 +123,12 @@ def main():
 
         for (input, true_mask, ela, true_label) in train_combined_loader:
             fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-            loss_seg, loss_cls = fmd_v2.optimize_parameters()
+            
+            # training cls branch each 5 epochs
+            if (epoch + args.resume_epoch + 1) % 5 == 0: 
+                loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=False)
+            else:
+                loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=True)
             
             # total loss
             total_loss_seg += loss_seg.item()
