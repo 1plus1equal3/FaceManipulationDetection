@@ -6,12 +6,10 @@ sys.path.append(os.getcwd())
 import torch
 import torch.nn as nn
 from torch import optim
-import torchvision
 
 from tqdm import tqdm
 from src.network.backbone_gan import *
-from src.network.u2net_gan_v2 import U2NetGanV2, init_u2net_gan_v2
-from src.utils.perceptural_loss import VGG19PerceptureLoss
+from src.network.u2net_gan_v2 import init_u2net_gan_v2
 
 class FMD_v2(nn.Module):
     def __init__(self, device, in_channels=3):
@@ -20,9 +18,6 @@ class FMD_v2(nn.Module):
         
         # init model
         self.u2net_gan_v2 = init_u2net_gan_v2()
-        
-        # set training mode
-        self.u2net_gan_v2.train()
         
         # use_gpu
         self.u2net_gan_v2.to(self.device)
@@ -58,7 +53,7 @@ class FMD_v2(nn.Module):
                     param.requires_grad = requires_grad
             
     
-    def backward_u2net_gan_v2(self, lambda_seg=0.1):
+    def backward_u2net_gan_v2(self, training=True):
         """ calculate loss for u2net-gan
         """
         
@@ -73,7 +68,8 @@ class FMD_v2(nn.Module):
         
         loss_seg = loss_d0 + 0.8 * loss_d1 + 0.2 * (loss_d2 + loss_d3 + loss_d4 + loss_d5 + loss_d6)
 
-        loss_seg.backward()
+        if training:
+            loss_seg.backward()
         
         return loss_seg
     
