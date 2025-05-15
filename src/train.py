@@ -117,9 +117,6 @@ def main():
         
         torch.cuda.empty_cache()
         total_loss_seg = 0.0
-        total_loss_cls = 0.0
-        true_preds = 0
-        total = 0
 
         for (input, true_mask, _, _) in train_combined_loader:
             fmd_v2.set_input(inputs=input, labels=true_mask)
@@ -128,7 +125,6 @@ def main():
             
             # total loss
             total_loss_seg += loss_seg.item()
-            break
             
         # eval
         fmd_v2.eval()
@@ -159,7 +155,6 @@ def main():
                 # ssim
                 ssim = ssim_batch(pred_mask, true_mask)
                 total_ssim += ssim.item()
-                break
 
             if (epoch + args.resume_epoch + 1) % 5 == 0 or epoch == 0:
                 # psnr for bald
