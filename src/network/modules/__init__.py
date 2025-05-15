@@ -5,3 +5,4 @@ from .attention_gate import AttentionGate
 from .adaptive_fussion import AdaptiveFusion
 from .triplet_attention import TripletAttention
 from .pyramid_pooling import PyramidPoolingModule
+from .DCA.DCA import DCA
