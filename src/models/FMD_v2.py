@@ -24,7 +24,7 @@ class FMD_v2(nn.Module):
         
         # define for training
         # optim
-        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=0.001, betas=(0.9, 0.999))
+        self.optimizer_u2net_gan_v2 = optim.Adam(self.u2net_gan_v2.parameters(), lr=0.003, betas=(0.9, 0.999))
         
         # scheduler
         
