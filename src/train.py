@@ -121,8 +121,8 @@ def main():
         true_preds = 0
         total = 0
 
-        for (input, true_mask, ela, true_label) in train_combined_loader:
-            fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+        for (input, true_mask, _, _) in train_combined_loader:
+            fmd_v2.set_input(inputs=input, labels=true_mask)
             
             loss_seg = fmd_v2.optimize_parameters()
             
@@ -140,15 +140,15 @@ def main():
         psnr_eyeglass = 0
         psnr_smile = 0
         with torch.no_grad():
-            for i, (input, true_mask, ela, true_label) in enumerate(test_combined_loader):
-                fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+            for i, (input, true_mask, _, _) in enumerate(test_combined_loader):
+                fmd_v2.set_input(inputs=input, labels=true_mask)
                 pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
                     visualize_results(input, input, true_mask, pred_mask, d1, d2, d3, d4, d5, d6, args.save_results, epoch+1)
  
                 # loss
-                loss_seg, loss_cls = fmd_v2.backward_u2net_gan_v2(training=False)
+                loss_seg = fmd_v2.backward_u2net_gan_v2(training=False)
                 total_loss_seg_val += loss_seg.item()
 
                 
@@ -163,8 +163,8 @@ def main():
 
             if (epoch + args.resume_epoch + 1) % 5 == 0 or epoch == 0:
                 # psnr for bald
-                for (input, true_mask, ela, true_label) in bald_loader:
-                    fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+                for (input, true_mask, _, _) in bald_loader:
+                    fmd_v2.set_input(inputs=input, labels=true_mask)
                     pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
 
                     # psnr
@@ -172,8 +172,8 @@ def main():
                     psnr_bald += psnr.item()
 
                 # psnr for eyeglass
-                for (input, true_mask, ela, true_label) in eyeglass_loader:
-                    fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+                for (input, true_mask, _, _) in eyeglass_loader:
+                    fmd_v2.set_input(inputs=input, labels=true_mask)
                     pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
 
                     # psnr
@@ -181,8 +181,8 @@ def main():
                     psnr_eyeglass += psnr.item()
 
                 # psnr for smile
-                for (input, true_mask, ela, true_label) in smile_loader:
-                    fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
+                for (input, true_mask, _, _) in smile_loader:
+                    fmd_v2.set_input(inputs=input, labels=true_mask)
                     pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
 
                     # psnr
@@ -193,8 +193,6 @@ def main():
             f"\nEpoch: {epoch + args.resume_epoch + 1}\n"
             f"loss_seg_train: {total_loss_seg/len(train_combined_loader):.4f}\n"
             f"loss_seg_val: {total_loss_seg_val/len(test_combined_loader):.4f}\n"
-            f"loss_cls_train: {total_loss_cls/len(train_combined_loader):.4f}\n"
-            f"acc_train: {true_preds/total:.4f}\n"
             f"total_psnr: {total_psnr/len(test_combined_loader):.4f}\n"
             f"ssim: {total_ssim/len(test_combined_loader):.4f}\n"
             f"bald_psnr: {psnr_bald/len(bald_loader):.4f}\n"
