@@ -4,19 +4,25 @@ import torch.nn.functional as F
 from torchsummary import summary
 
 class REBNCONV(nn.Module):
-    def __init__(self,in_ch=3,out_ch=3,dirate=1):
-        super(REBNCONV,self).__init__()
+    def __init__(self, in_ch=3, out_ch=3, dirate=1):
+        super(REBNCONV, self).__init__()
 
-        self.conv_s1 = nn.Conv2d(in_ch,out_ch,3,padding=1*dirate,dilation=1*dirate)
-        self.bn_s1 = nn.BatchNorm2d(out_ch)
-        self.relu_s1 = nn.ReLU(inplace=True)
+        # Depthwise convolution
+        self.depthwise = nn.Conv2d(
+            in_ch, in_ch, kernel_size=3, padding=1*dirate, dilation=1*dirate, groups=in_ch)
+        # Pointwise convolution
+        self.pointwise = nn.Conv2d(
+            in_ch, out_ch, kernel_size=1)
 
-    def forward(self,x):
+        self.bn = nn.BatchNorm2d(out_ch)
+        self.relu = nn.ReLU(inplace=True)
 
-        hx = x
-        xout = self.relu_s1(self.bn_s1(self.conv_s1(hx)))
-
-        return xout
+    def forward(self, x):
+        x = self.depthwise(x)
+        x = self.pointwise(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        return x
 
 ## upsample tensor 'src' to have the same spatial size with tensor 'tar'
 def _upsample_like(src,tar):
