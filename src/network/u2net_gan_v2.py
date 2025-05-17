@@ -163,7 +163,7 @@ class U2NetGanV2(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6),1))
 
-        return torch.sigmoid(d0), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+        return d0, d1, d2, d3, d4, d5, d6
     
 # model = U2NetGanV2()
 # x = torch.randn(2, 3, 256, 256)  # Batch size 1
