@@ -227,7 +227,7 @@ def get_dataloader(dataset_path, mode='train', type='fake', attribute=None):
                 trans_label=trans_label
             )
             
-        test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['val'], shuffle=False)
+        test_real_loader = DataLoader(test_real_dataset, batch_size=config['datasets']['val'], shuffle=True)
         
         # fake dataset
         test_fake_dataset = GANDataset_V2(
@@ -237,7 +237,7 @@ def get_dataloader(dataset_path, mode='train', type='fake', attribute=None):
                 trans_label=trans_label
             )
             
-        test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['val'], shuffle=False)
+        test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['val'], shuffle=True)
             
         if type == 'real':
             return test_real_loader
@@ -245,7 +245,7 @@ def get_dataloader(dataset_path, mode='train', type='fake', attribute=None):
             return test_fake_loader
         elif type == 'combined':
             combined_dataset = ConcatDataset([test_real_dataset, test_fake_dataset])
-            combined_loader = DataLoader(combined_dataset, batch_size=config['datasets']['val'], shuffle=False)
+            combined_loader = DataLoader(combined_dataset, batch_size=config['datasets']['val'], shuffle=True)
             return combined_loader
         else:
             raise ValueError(f"Invalid dataset type: {type}. Must be 'real', 'fake', or 'combined'")
@@ -259,7 +259,7 @@ def get_bald_data(dataset, label):
             bald_label_path.append(label[i])
 
     bald_dataset = GANDataset_V2(bald_dataset_path, bald_label_path, trans_input=trans_input, trans_label=trans_label)
-    bald_loader = DataLoader(bald_dataset, batch_size=config['datasets']['val'], shuffle=False)
+    bald_loader = DataLoader(bald_dataset, batch_size=config['datasets']['val'], shuffle=True)
     return bald_loader
 
 def get_eyeglass_data(dataset, label):
@@ -271,7 +271,7 @@ def get_eyeglass_data(dataset, label):
             eyeglass_label_path.append(label[i])
 
     eyeglass_dataset = GANDataset_V2(eyeglass_dataset_path, eyeglass_label_path, trans_input=trans_input, trans_label=trans_label)
-    eyeglass_loader = DataLoader(eyeglass_dataset, batch_size=config['datasets']['val'], shuffle=False)
+    eyeglass_loader = DataLoader(eyeglass_dataset, batch_size=config['datasets']['val'], shuffle=True)
     return eyeglass_loader
 
 def get_smile_data(dataset, label):
@@ -283,5 +283,5 @@ def get_smile_data(dataset, label):
             smile_label_path.append(label[i])
             
     smile_dataset = GANDataset_V2(smile_dataset_path, smile_label_path, trans_input=trans_input, trans_label=trans_label)
-    smile_loader = DataLoader(smile_dataset, batch_size=config['datasets']['val'], shuffle=False)
+    smile_loader = DataLoader(smile_dataset, batch_size=config['datasets']['val'], shuffle=True)
     return smile_loader
