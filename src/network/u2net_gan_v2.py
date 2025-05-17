@@ -153,7 +153,7 @@ class U2NetGanV2(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6), 1))
 
-        return torch.sigmoid(d0), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6), pred
+        return d0, d1, d2, d3, d4, d5, d6, pred
     
 # x = torch.randn(1, 3, 256, 256)
 # y = torch.randn(1, 3, 256, 256)
@@ -163,7 +163,3 @@ class U2NetGanV2(nn.Module):
 
 # num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 # print(f"Number of trainable parameters: {num_params}") 
-
-# for name, param in model.named_parameters():
-#     if param.requires_grad:
-#         print(name, param.data.shape)
