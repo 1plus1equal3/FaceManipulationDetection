@@ -125,7 +125,7 @@ def main():
             fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
             
             # training cls branch each 5 epochs
-            if (epoch + args.resume_epoch + 1) % 5 == 0: 
+            if (epoch + args.resume_epoch + 1) % 5 == 0 or epoch == 0: 
                 loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=False)
             else:
                 loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=True)
@@ -137,6 +137,7 @@ def main():
             true_pred, num_image = fmd_v2.get_num_true_pred_images()
             true_preds += true_pred
             total += num_image
+            break
             
         # eval
         fmd_v2.eval()
@@ -154,6 +155,9 @@ def main():
             for i, (input, true_mask, ela, true_label) in enumerate(test_combined_loader):
                 fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
                 pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
+
+                # sigmoid
+                pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
                     visualize_results(input, ela, true_mask, pred_mask, d1, d2, d3, d4, d5, d6, args.save_results, epoch+1)
@@ -182,6 +186,9 @@ def main():
                     fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
                     pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
 
+                    # sigmoid
+                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                     psnr_bald += psnr.item()
@@ -191,6 +198,9 @@ def main():
                     fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
                     pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
 
+                    # sigmoid
+                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+                    
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                     psnr_eyeglass += psnr.item()
@@ -200,6 +210,9 @@ def main():
                     fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
                     pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
 
+                    # sigmoid
+                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+                    
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                     psnr_smile += psnr.item()
