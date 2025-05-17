@@ -139,6 +139,9 @@ def main():
             for i, (input, true_mask, _, _) in enumerate(test_combined_loader):
                 fmd_v2.set_input(inputs=input, labels=true_mask)
                 pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
+
+                # sigmoid
+                pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
                     visualize_results(input, input, true_mask, pred_mask, d1, d2, d3, d4, d5, d6, args.save_results, epoch+1)
@@ -147,7 +150,6 @@ def main():
                 loss_seg = fmd_v2.backward_u2net_gan_v2(training=False)
                 total_loss_seg_val += loss_seg.item()
 
-                
                 # psnr
                 psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                 total_psnr += psnr.item()
@@ -162,6 +164,9 @@ def main():
                     fmd_v2.set_input(inputs=input, labels=true_mask)
                     pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
 
+                    # sigmoid
+                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                     psnr_bald += psnr.item()
@@ -171,6 +176,9 @@ def main():
                     fmd_v2.set_input(inputs=input, labels=true_mask)
                     pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
 
+                    # sigmoid
+                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
                     psnr_eyeglass += psnr.item()
@@ -179,6 +187,9 @@ def main():
                 for (input, true_mask, _, _) in smile_loader:
                     fmd_v2.set_input(inputs=input, labels=true_mask)
                     pred_mask, d1, d2, d3, d4, d5, d6 = fmd_v2()
+
+                    # sigmoid
+                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
 
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
