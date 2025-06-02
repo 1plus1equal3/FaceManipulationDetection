@@ -7,13 +7,13 @@ class Classifier(nn.Module):
         self.classifier = nn.Sequential(
             nn.AdaptiveAvgPool2d(output_size=(1, 1)),
             nn.Flatten(),
-            nn.Linear(in_features=1024, out_features=256),
+            nn.Linear(in_features=512, out_features=128),
             nn.ReLU(),
             # nn.Dropout(p=0.3),
             # nn.Linear(in_features=256, out_features = 64),
             # nn.ReLU(),
             nn.Dropout(p = 0.3),
-            nn.Linear(in_features=256, out_features=num_classes)
+            nn.Linear(in_features=128, out_features=num_classes)
         )
     def forward(self, x):
         x = self.classifier(x)

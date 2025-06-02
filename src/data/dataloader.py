@@ -96,23 +96,23 @@ class GANDataset_V2(Dataset):
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
             
             # for kaggle path
-            # parent_dir = os.path.dirname(image_path)
-            # real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
+            parent_dir = os.path.dirname(image_path)
+            real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
             
             # for local path
-            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
+            # real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
             real_image = cv2.imread(real_image_path)
             real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
 
-            true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
+            # true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
             
             if self.trans_input:
                 image = self.trans_input(image)
+                ela = self.trans_input(ela)
                 # real_image = self.trans_input(real_image)
                 
             if self.trans_label:
                 label = self.trans_label(label)
-                ela = self.trans_label(ela)
         
             return image, label, ela, true_cls_label
         
@@ -124,20 +124,26 @@ class GANDataset_V2(Dataset):
             label =  np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
             label = np.expand_dims(label, axis=2)         # (H, W, 1)
 
-            true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
+            # true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
             
             if self.trans_input:
                 image = self.trans_input(image)
+                ela = self.trans_input(ela)
                 
             if self.trans_label:
                 label = self.trans_label(label)
-                ela = self.trans_label(ela)
             
             return image, label, ela, true_cls_label
     
 
 def get_data_paths(dataset_path):
     # real + fake + mask image paths
+    # for local path
+    # real_image_folder_path = os.path.join(dataset_path, 'reals')
+    # fake_image_folder_path = os.path.join(dataset_path, 'fakes')
+    # mask_image_folder_path = os.path.join(dataset_path, 'masks')
+
+    # for kaggle path
     real_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/real-20250326T031740Z-001/real')
     fake_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/fake_attrGAN/fake_attrGAN')
     mask_image_folder_path = os.path.join(dataset_path, 'masked-dataset-newversion/mask')
@@ -153,19 +159,32 @@ def get_data_paths(dataset_path):
     return real_image_paths, fake_image_paths, mask_image_paths
     
 
-def get_dataloader(dataset_path, mode='train', type='train'):
+def get_dataloader(dataset_path, mode='train', type='fake', attribute=None):
     real_image_paths, fake_image_paths, mask_image_paths = get_data_paths(dataset_path=dataset_path)
     
     # train model with 30000 fake images and 3000 real images
-    real_image_paths = real_image_paths[:5000]
-    mask_image_paths = mask_image_paths[:40000]
-    fake_image_paths = fake_image_paths[:40000]
+    real_image_paths = real_image_paths[:18000]
+    mask_image_paths = mask_image_paths[:18000]
+    fake_image_paths = fake_image_paths[:18000]
 
     # train test split
     train_real_image_paths, val_real_image_paths = train_test_split(real_image_paths, test_size=0.3, random_state=42)
     
     train_fake_image_paths, val_fake_image_paths, train_mask_images_paths, \
         val_mask_image_paths = train_test_split(fake_image_paths, mask_image_paths, test_size=0.3, random_state=42)
+
+    # get attribute data
+    if attribute == 'bald':
+        bald_loader = get_bald_data(val_fake_image_paths, val_mask_image_paths)
+        return bald_loader
+    elif attribute == 'eyeglass':
+        eyeglass_loader = get_eyeglass_data(val_fake_image_paths, val_mask_image_paths)
+        return eyeglass_loader
+    elif attribute == 'smile':
+        smile_loader = get_smile_data(val_fake_image_paths, val_mask_image_paths)
+        return smile_loader
+    else:
+        print(f"Training with no attribute")
 
     if mode == 'train':
         # real dataset
@@ -217,16 +236,51 @@ def get_dataloader(dataset_path, mode='train', type='train'):
                 trans_label=trans_label
             )
             
-        # sampler = DistributedSampler(test_fake_dataset)
         test_fake_loader = DataLoader(test_fake_dataset, batch_size=config['datasets']['val'], shuffle=True)
             
-        if type == 'train':
+        if type == 'real':
             return test_real_loader
-        elif type == 'test':
+        elif type == 'fake':
             return test_fake_loader
         elif type == 'combined':
             combined_dataset = ConcatDataset([test_real_dataset, test_fake_dataset])
             combined_loader = DataLoader(combined_dataset, batch_size=config['datasets']['val'], shuffle=True)
             return combined_loader
         else:
-            print("Error in type of dataset")
+            raise ValueError(f"Invalid dataset type: {type}. Must be 'real', 'fake', or 'combined'")
+
+def get_bald_data(dataset, label):
+    bald_dataset_path = []
+    bald_label_path = []
+    for i, path in enumerate(dataset):
+        if os.path.basename(path).split('_')[1] == '1.jpg':
+            bald_dataset_path.append(path)
+            bald_label_path.append(label[i])
+
+    bald_dataset = GANDataset_V2(bald_dataset_path, bald_label_path, trans_input=trans_input, trans_label=trans_label)
+    bald_loader = DataLoader(bald_dataset, batch_size=config['datasets']['val'], shuffle=True)
+    return bald_loader
+
+def get_eyeglass_data(dataset, label):
+    eyeglass_dataset_path = []
+    eyeglass_label_path = []
+    for i, path in enumerate(dataset):
+        if os.path.basename(path).split('_')[1] == '7.jpg':
+            eyeglass_dataset_path.append(path)
+            eyeglass_label_path.append(label[i])
+
+    eyeglass_dataset = GANDataset_V2(eyeglass_dataset_path, eyeglass_label_path, trans_input=trans_input, trans_label=trans_label)
+    eyeglass_loader = DataLoader(eyeglass_dataset, batch_size=config['datasets']['val'], shuffle=True)
+    return eyeglass_loader
+
+def get_smile_data(dataset, label):
+    smile_dataset_path = []
+    smile_label_path = []
+    for i, path in enumerate(dataset):
+        if os.path.basename(path).split('_')[1] == '9.jpg':
+            smile_dataset_path.append(path)
+            smile_label_path.append(label[i])
+            
+    smile_dataset = GANDataset_V2(smile_dataset_path, smile_label_path, trans_input=trans_input, trans_label=trans_label)
+    smile_loader = DataLoader(smile_dataset, batch_size=config['datasets']['val'], shuffle=True)
+    return smile_loader
