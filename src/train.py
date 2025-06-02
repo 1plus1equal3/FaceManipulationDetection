@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import wandb
 import argparse
 import random
 import numpy as np
@@ -32,7 +33,6 @@ def set_random_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    import os
     os.environ['PYTHONHASHSEED'] = str(seed)
 
 def main():
@@ -47,6 +47,18 @@ def main():
     parser.add_argument('--save_results', type=str, default='', help='path to save results')
     
     args = parser.parse_args()
+
+    # wandb
+    wandb.login(key='a6c7a7239821c37091bafec2b64870c6ca1aedfe')
+    wandb.init(
+        project="U2Net_MHSA_MHCA",
+        config={
+            "learning_rate": 0.0001,
+            "batch_size": 32,
+            "model": "U2Net with MHCA + MHSA",
+            "loss_function": "L1 + CrossEntropy"
+        }
+    )
     
     # define model
     fmd_v2 = FMD_v2(device=device)
@@ -69,46 +81,6 @@ def main():
     if not os.path.exists('checkpoints'):
         os.makedirs('checkpoints')
     
-    # phase 1: train with real image
-    # epochs = config['model']['epoch']
-    # for epoch in tqdm(range(10)):
-    #     total_loss_seg = 0.0
-        
-    #     for (input, true_mask) in (train_real_loader):
-    #         fmd_v2.set_input(input, true_mask)
-    #         loss_seg = fmd_v2.optimize_parameters()
-            
-    #         # total loss
-    #         total_loss_seg += loss_seg
-            
-    #     if (epoch + 1) % 10 == 0 or epoch == 0:
-            
-    #         # save checkpoint
-    #         if not os.path.exists('checkpoints'):
-    #             os.makedirs('checkpoints')
-                
-    #         if torch.distributed.get_rank() == 0:
-    #             # Save model's weight
-    #             checkpoint_path = f'checkpoints/weights_attn_gate.pt'
-    #             torch.save(fmd_v2.state_dict(), checkpoint_path)
-            
-    #         # visualize some sample in test loader
-    #         print(len(test_real_loader))
-    #         total_loss_seg_val = 0.0
-    #         with torch.no_grad():
-    #             for i, (input, true_mask) in enumerate(test_real_loader):
-    #                 fmd_v2.set_input(input, true_mask)
-    #                 pred_mask, _, _, _, _, _, _ = fmd_v2()
-                    
-    #                 if i == 10:
-    #                     visualize_results(input, input, true_mask, pred_mask, epoch+1, text='phase_1')
-                    
-    #                 loss = fmd_v2.calculate_loss(pred_mask, true_mask)
-    #                 total_loss_seg_val += loss.item()
-            
-    #         print(f"loss_seg_train: {total_loss_seg/len(train_real_loader):.4f}\t loss_seg_val: {total_loss_seg_val/len(test_real_loader):.4f}") 
-                
-    # phase 2: train with fake image
     best_loss_seg = 1e6
     count = 0
     for epoch in tqdm(range(config['model']['epoch'])):
@@ -124,12 +96,13 @@ def main():
         for (input, true_mask, ela, true_label) in train_combined_loader:
             fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
             
-            # training cls branch each 5 epochs
-            if (epoch + args.resume_epoch + 1) % 5 == 0 or epoch == 0: 
-                loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=False)
-            else:
-                loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=True)
-            
+            # # training cls branch each 5 epochs
+            # if (epoch + args.resume_epoch + 1) % 5 == 0 or epoch == 0: 
+            #     loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=False)
+            # else:
+            #     loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=True)
+            loss_seg, loss_cls = fmd_v2.optimize_parameters(freeze_cls_branch=False)
+
             # total loss
             total_loss_seg += loss_seg.item()
             total_loss_cls += loss_cls.item()
@@ -137,7 +110,6 @@ def main():
             true_pred, num_image = fmd_v2.get_num_true_pred_images()
             true_preds += true_pred
             total += num_image
-            break
             
         # eval
         fmd_v2.eval()
@@ -154,13 +126,13 @@ def main():
         with torch.no_grad():
             for i, (input, true_mask, ela, true_label) in enumerate(test_combined_loader):
                 fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-                pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
+                pred_mask, d1, d2, d3, d4, d5, pred_label = fmd_v2()
 
                 # sigmoid
-                pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+                pred_mask, d1, d2, d3, d4, d5 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5)
                 
                 if ((epoch + 1) % 5 == 0 or epoch == 0) and i == 20:
-                    visualize_results(input, ela, true_mask, pred_mask, d1, d2, d3, d4, d5, d6, args.save_results, epoch+1)
+                    visualize_results(input, ela, true_mask, pred_mask, d1, d2, d3, d4, d5, d5, args.save_results, epoch+1)
  
                 # loss
                 loss_seg, loss_cls = fmd_v2.backward_u2net_gan_v2(training=False)
@@ -184,10 +156,10 @@ def main():
                 # psnr for bald
                 for (input, true_mask, ela, true_label) in bald_loader:
                     fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-                    pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
+                    pred_mask, d1, d2, d3, d4, d5, pred_label = fmd_v2()
 
                     # sigmoid
-                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+                    pred_mask, d1, d2, d3, d4, d5 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5)
 
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
@@ -196,10 +168,10 @@ def main():
                 # psnr for eyeglass
                 for (input, true_mask, ela, true_label) in eyeglass_loader:
                     fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-                    pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
+                    pred_mask, d1, d2, d3, d4, d5, pred_label = fmd_v2()
 
                     # sigmoid
-                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+                    pred_mask, d1, d2, d3, d4, d5 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5)
                     
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
@@ -208,10 +180,10 @@ def main():
                 # psnr for smile
                 for (input, true_mask, ela, true_label) in smile_loader:
                     fmd_v2.set_input(inputs=input, segment_labels=true_mask, ela=ela, cls_labels=true_label)
-                    pred_mask, d1, d2, d3, d4, d5, d6, pred_label = fmd_v2()
+                    pred_mask, d1, d2, d3, d4, d5, pred_label = fmd_v2()
 
                     # sigmoid
-                    pred_mask, d1, d2, d3, d4, d5, d6 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5), torch.sigmoid(d6)
+                    pred_mask, d1, d2, d3, d4, d5 = torch.sigmoid(pred_mask), torch.sigmoid(d1), torch.sigmoid(d2), torch.sigmoid(d3), torch.sigmoid(d4), torch.sigmoid(d5)
                     
                     # psnr
                     psnr = compute_psnr_batch(true_mask, pred_mask, device=device)
@@ -232,6 +204,18 @@ def main():
             f"smile_psnr: {psnr_smile/len(smile_loader):.4f}\n"
         )
         
+        wandb.log({
+            "train_seg_loss": total_loss_seg/len(train_combined_loader),
+            "test_seg_loss": total_loss_seg_val/len(test_combined_loader),
+            "train_acc": true_preds/total,
+            "test_acc": true_preds_val/total_val,
+            "psnr": total_psnr/len(test_combined_loader),
+            "ssim": total_ssim/len(test_combined_loader),
+            "bald_psnr": psnr_bald/len(bald_loader),
+            "eyeglass_psnr": psnr_eyeglass/len(eyeglass_loader),
+            "smile_psnr": psnr_smile/len(smile_loader),
+        })
+
         # Early Stopping
         if total_loss_seg_val < best_loss_seg:
             best_loss_seg = total_loss_seg_val
