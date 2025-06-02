@@ -22,7 +22,7 @@ class ConvBlock(nn.Module):
 class EncodeELA(nn.Module):
     def __init__(self):
         super(EncodeELA, self).__init__()
-        self.conv1 = ConvBlock(3,64)
+        self.conv1 = ConvBlock(1,64)
         self.cbam1 = CBAM(64)
         self.pool1 = nn.MaxPool2d(kernel_size = 2, stride = 2)
         self.conv2 = ConvBlock(64,128)
