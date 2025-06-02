@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torchsummary import summary
 
 from src.network.modules import AttentionGateV2, EncodeELA, Classifier
+from src.network.modules.UTransformer import MultiHeadSelfAttention, MultiHeadCrossAttention
 from src.network.backbone_u2_net import *
 from src.utils import init_weights
 
@@ -32,7 +33,6 @@ class U2NetGanV2(nn.Module):
         
         # Encode ELA
         self.encode_ela = EncodeELA()
-        self.gate1 = AttentionGateV2(512)
         self.gate2 = AttentionGateV2(512)
         self.gate3 = AttentionGateV2(256)
         self.gate4 = AttentionGateV2(128)
@@ -42,10 +42,8 @@ class U2NetGanV2(nn.Module):
         self.stage1 = RSU7(in_ch,32,64)
         self.pool12 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
         
-        
         self.stage2 = RSU6(64,32,128)
         self.pool23 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
-
 
         self.stage3 = RSU5(128,64,256)
         self.pool34 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
@@ -54,13 +52,15 @@ class U2NetGanV2(nn.Module):
         self.pool45 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
         self.stage5 = RSU4F(512,256,512)
-        
-        self.pool56 = nn.MaxPool2d(2,stride=2,ceil_mode=True)
 
-        self.stage6 = RSU4F(512,256,512)
+        # Transformer attention
+        self.mhsa = MultiHeadSelfAttention(512)
+        self.mhca4 = MultiHeadCrossAttention(512, 512)
+        self.mhca3 = MultiHeadCrossAttention(512, 256)
+        self.mhca2 = MultiHeadCrossAttention(256, 128)
+        self.mhca1 = MultiHeadCrossAttention(128, 64)
 
         # decoder
-        self.stage5d = RSU4F(1024,256,512)
         self.stage4d = RSU4(1024,128,256)
         self.stage3d = RSU5(512,64,128)
         self.stage2d = RSU6(256,32,64)
@@ -71,9 +71,8 @@ class U2NetGanV2(nn.Module):
         self.side3 = nn.Conv2d(128,out_ch,3,padding=1)
         self.side4 = nn.Conv2d(256,out_ch,3,padding=1)
         self.side5 = nn.Conv2d(512,out_ch,3,padding=1)
-        self.side6 = nn.Conv2d(512,out_ch,3,padding=1)
 
-        self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
+        self.outconv = nn.Conv2d(5*out_ch,out_ch,1)
         self.classifier = Classifier(num_classes=2)
 
     def forward(self,x,ela):
@@ -98,11 +97,7 @@ class U2NetGanV2(nn.Module):
 
         #stage 5
         hx5 = self.stage5(hx)
-        hx = self.pool56(hx5)
-
-        #stage 6
-        hx6 = self.stage6(hx)
-        hx6up = _upsample_like(hx6,hx5)
+        hx5dup = _upsample_like(hx5, hx4)
         
         #-----------------------ela-----------------------
         ela1, ela2, ela3, ela4, ela5 = self.encode_ela(ela)
@@ -111,26 +106,24 @@ class U2NetGanV2(nn.Module):
         pred = self.classifier(ela5)
         
         #------------------attention gate-----------------
-        attn5 = self.gate1(hx5, ela5)
         attn4 = self.gate2(hx4, ela4)
         attn3 = self.gate3(hx3, ela3)
         attn2 = self.gate4(hx2, ela2)
         attn1 = self.gate5(hx1, ela1)
 
+        #-------------------- MHSA -----------------------
+        attn4 = self.mhsa(attn4)
         #-------------------- decoder --------------------
-        hx5d = self.stage5d(torch.cat((hx6up,attn5),1))
-        hx5dup = _upsample_like(hx5d,hx4)
-
-        hx4d = self.stage4d(torch.cat((hx5dup,attn4),1))
+        hx4d = self.stage4d(self.mhca4(hx5, attn4))
         hx4dup = _upsample_like(hx4d,hx3)
 
-        hx3d = self.stage3d(torch.cat((hx4dup,attn3),1))
+        hx3d = self.stage3d(self.mhca3(hx4, attn3))
         hx3dup = _upsample_like(hx3d,hx2)
 
-        hx2d = self.stage2d(torch.cat((hx3dup,attn2),1))
+        hx2d = self.stage2d(self.mhca2(hx3, attn2))
         hx2dup = _upsample_like(hx2d,hx1)
 
-        hx1d = self.stage1d(torch.cat((hx2dup,attn1),1))
+        hx1d = self.stage1d(self.mhca1(hx2, attn1))
 
 
         # side output
@@ -145,15 +138,12 @@ class U2NetGanV2(nn.Module):
         d4 = self.side4(hx4d)
         d4 = _upsample_like(d4,d1)
 
-        d5 = self.side5(hx5d)
+        d5 = self.side5(hx5)
         d5 = _upsample_like(d5,d1)
 
-        d6 = self.side6(hx6)
-        d6 = _upsample_like(d6,d1)
+        d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5), 1))
 
-        d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6), 1))
-
-        return d0, d1, d2, d3, d4, d5, d6, pred
+        return d0, d1, d2, d3, d4, d5, pred
     
 # x = torch.randn(1, 3, 256, 256)
 # y = torch.randn(1, 3, 256, 256)

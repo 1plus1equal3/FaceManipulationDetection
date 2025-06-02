@@ -12,7 +12,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset, ConcatDataset
 from torchvision import transforms
-from src.utils.util import convert_to_ela_image
+from src.utils.util import high_pass_filter_image
 
 # transform for input image
 trans_input = transforms.Compose([
@@ -30,44 +30,6 @@ trans_label = transforms.Compose([
 # load config file
 with open('src/config.json', 'r') as f:
     config = json.load(f)
-
-class GanDataset(Dataset):
-    def __init__(self, real_image_paths, fake_image_paths, masked_fake_image_paths, trans_input=None, trans_label=None):
-        self.real_image_paths = real_image_paths
-        self.fake_image_paths = fake_image_paths
-        self.masked_fake_image_paths = masked_fake_image_paths
-        self.trans_input = trans_input
-        self.trans_label = trans_label
-
-    def __len__(self):
-        # combine real and fake for training
-        return len(self.fake_image_paths) + len(self.real_image_paths)
-
-    def __getitem__(self, idx):
-        if idx < len(self.real_image_paths):
-            image = cv2.imread(self.real_image_paths[idx])
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
-            masked_image = np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
-            masked_image = np.expand_dims(masked_image, axis=2)  # (H, W, 1)
-            input_is_real = True
-        else:
-            image = cv2.imread(self.fake_image_paths[idx - len(self.real_image_paths)])
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-            masked_image = cv2.imread(self.masked_fake_image_paths[idx - len(self.real_image_paths)], cv2.IMREAD_GRAYSCALE)
-            input_is_real = False
-
-        # trans input
-        if self.trans_input:
-            image = self.trans_input(image)
-            
-        # trans label    
-        if self.trans_label:
-            masked_image = self.trans_label(masked_image)
-
-        return image, masked_image, input_is_real
-    
     
 class GANDataset_V2(Dataset):
     def __init__(self, image_paths, label_paths=None, trans_input=None, trans_label=None):
@@ -84,8 +46,8 @@ class GANDataset_V2(Dataset):
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
-        # convert to ela image
-        ela = convert_to_ela_image(image_path)
+        # fft high pass filter
+        ela = high_pass_filter_image(image_path)
         
         # self.label_paths is not None => fake_image
         if self.label_paths:
@@ -121,7 +83,7 @@ class GANDataset_V2(Dataset):
             # real
             true_cls_label = 0
             # segment label
-            label =  np.zeros(image.shape[:2], dtype=np.uint8) # (H, W)
+            label =  np.zeros(image.shape[:2], dtype=np.float32) # (H, W)
             label = np.expand_dims(label, axis=2)         # (H, W, 1)
 
             # true_cls_label = torch.tensor([true_cls_label], dtype=torch.float32)
@@ -216,7 +178,7 @@ def get_dataloader(dataset_path, mode='train', type='fake', attribute=None):
             combined_loader = DataLoader(combined_dataset, batch_size=config['datasets']['train'], shuffle=True)
             return combined_loader
         else:
-            print("Error in type of dataset")
+            raise ValueError(f"Invalid dataset type: {type}. Must be 'real', 'fake', or 'combined'")
             
     elif mode == 'test':
         # real dataset

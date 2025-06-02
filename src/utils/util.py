@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import cv2
 import torch.nn.functional as F
 from PIL import Image, ImageChops, ImageEnhance
 from io import BytesIO
@@ -164,3 +165,24 @@ def convert_to_ela_image(image_path, quality=90):
     ela_image = ImageEnhance.Brightness(ela_image).enhance(scale)
 
     return ela_image
+
+def high_pass_filter_image(image_path, radius=30):
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    f = np.fft.fft2(image)
+    fshift = np.fft.fftshift(f)
+    
+    rows, cols = image.shape
+    crow, ccol = rows // 2 , cols // 2
+    mask = np.ones((rows, cols), np.uint8)
+    mask[crow - radius:crow + radius, ccol - radius:ccol + radius] = 0
+    
+    fshift_filtered = fshift * mask
+    f_ishift = np.fft.ifftshift(fshift_filtered)
+    img_back = np.fft.ifft2(f_ishift)
+    img_back = np.abs(img_back)
+    
+    img_back = cv2.normalize(img_back, None, 0, 255, cv2.NORM_MINMAX)
+    img_back = img_back.astype(np.uint8)
+    
+    return Image.fromarray(img_back)

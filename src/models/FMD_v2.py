@@ -70,9 +70,9 @@ class FMD_v2(nn.Module):
         
     def forward(self):
         # get output of u2net-gan
-        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6, self.pred_label = self.u2net_gan_v2(self.inputs, self.ela)
+        self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.pred_label = self.u2net_gan_v2(self.inputs, self.ela)
 
-        return self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.d6, self.pred_label
+        return self.d0, self.d1, self.d2, self.d3, self.d4, self.d5, self.pred_label
         
     def set_input(self, inputs, segment_labels, ela=None, cls_labels=None, real_images=None):
         self.inputs = inputs.to(self.device)
@@ -101,9 +101,8 @@ class FMD_v2(nn.Module):
         loss_seg_d3 = self.criterion_segment(self.d3, self.segment_labels)
         loss_seg_d4 = self.criterion_segment(self.d4, self.segment_labels)
         loss_seg_d5 = self.criterion_segment(self.d5, self.segment_labels)
-        loss_seg_d6 = self.criterion_segment(self.d6, self.segment_labels)
 
-        self.loss_seg = loss_seg_d0 +  loss_seg_d1 + 0.4 * (loss_seg_d2 + loss_seg_d3 + loss_seg_d4 + loss_seg_d5 + loss_seg_d6)
+        self.loss_seg = loss_seg_d0 +  loss_seg_d1 + 0.4 * (loss_seg_d2 + loss_seg_d3 + loss_seg_d4 + loss_seg_d5)
         
         # classification loss
         self.loss_cls = self.criterion_cls(self.pred_label, self.cls_labels)
