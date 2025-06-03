@@ -56,9 +56,9 @@ class U2NetGanV2(nn.Module):
         # Transformer attention
         self.mhsa = MultiHeadSelfAttention(512)
         self.mhca4 = MultiHeadCrossAttention(512, 512)
-        self.mhca3 = MultiHeadCrossAttention(512, 256)
-        self.mhca2 = MultiHeadCrossAttention(256, 128)
-        self.mhca1 = MultiHeadCrossAttention(128, 64)
+        self.mhca3 = MultiHeadCrossAttention(256, 256)
+        self.mhca2 = MultiHeadCrossAttention(128, 128)
+        self.mhca1 = MultiHeadCrossAttention(64, 64)
 
         # decoder
         self.stage4d = RSU4(1024,128,256)
@@ -117,13 +117,13 @@ class U2NetGanV2(nn.Module):
         hx4d = self.stage4d(self.mhca4(hx5, attn4))
         hx4dup = _upsample_like(hx4d,hx3)
 
-        hx3d = self.stage3d(self.mhca3(hx4, attn3))
+        hx3d = self.stage3d(self.mhca3(hx4d, attn3))
         hx3dup = _upsample_like(hx3d,hx2)
 
-        hx2d = self.stage2d(self.mhca2(hx3, attn2))
+        hx2d = self.stage2d(self.mhca2(hx3d, attn2))
         hx2dup = _upsample_like(hx2d,hx1)
 
-        hx1d = self.stage1d(self.mhca1(hx2, attn1))
+        hx1d = self.stage1d(self.mhca1(hx2d, attn1))
 
 
         # side output
@@ -145,11 +145,11 @@ class U2NetGanV2(nn.Module):
 
         return d0, d1, d2, d3, d4, d5, pred
     
-# x = torch.randn(1, 3, 256, 256)
-# y = torch.randn(1, 3, 256, 256)
-# model = U2NetGanV2()
-# result = model(x, y)
-# print(result[0].shape)  # Output shape of the first output (d0)
+x = torch.randn(1, 3, 256, 256)
+y = torch.randn(1, 1, 256, 256)
+model = U2NetGanV2()
+result = model(x, y)
+print(result[0].shape)  # Output shape of the first output (d0)
 
-# num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-# print(f"Number of trainable parameters: {num_params}") 
+num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f"Number of trainable parameters: {num_params}") 
