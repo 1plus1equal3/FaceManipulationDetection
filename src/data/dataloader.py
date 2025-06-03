@@ -3,6 +3,7 @@ import os
 import sys
 
 import cv2
+import random
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -58,11 +59,11 @@ class GANDataset_V2(Dataset):
             label = cv2.imread(label_path, cv2.IMREAD_GRAYSCALE)
             
             # for kaggle path
-            parent_dir = os.path.dirname(image_path)
-            real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
+            # parent_dir = os.path.dirname(image_path)
+            # real_image_path = (parent_dir + '/' + os.path.basename(image_path).split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fake_attrGAN/fake_attrGAN', 'real-20250326T031740Z-001/real')
             
             # for local path
-            # real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
+            real_image_path = (image_path.split('_')[0] + '_0.' + image_path.split('.')[1]).replace('fakes', 'reals')
             real_image = cv2.imread(real_image_path)
             real_image = cv2.cvtColor(real_image, cv2.COLOR_BGR2RGB)
 
@@ -101,14 +102,14 @@ class GANDataset_V2(Dataset):
 def get_data_paths(dataset_path):
     # real + fake + mask image paths
     # for local path
-    # real_image_folder_path = os.path.join(dataset_path, 'reals')
-    # fake_image_folder_path = os.path.join(dataset_path, 'fakes')
-    # mask_image_folder_path = os.path.join(dataset_path, 'masks')
+    real_image_folder_path = os.path.join(dataset_path, 'reals')
+    fake_image_folder_path = os.path.join(dataset_path, 'fakes')
+    mask_image_folder_path = os.path.join(dataset_path, 'masks')
 
     # for kaggle path
-    real_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/real-20250326T031740Z-001/real')
-    fake_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/fake_attrGAN/fake_attrGAN')
-    mask_image_folder_path = os.path.join(dataset_path, 'masked-dataset-newversion/mask')
+    # real_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/real-20250326T031740Z-001/real')
+    # fake_image_folder_path = os.path.join(dataset_path, 'dataset-attrgan/fake_attrGAN/fake_attrGAN')
+    # mask_image_folder_path = os.path.join(dataset_path, 'masked-dataset-newversion/mask')
 
     # get real image paths
     real_image_paths = sorted([os.path.join(real_image_folder_path, real_image_path) for real_image_path in os.listdir(real_image_folder_path)])
@@ -122,12 +123,15 @@ def get_data_paths(dataset_path):
     
 
 def get_dataloader(dataset_path, mode='train', type='fake', attribute=None):
+    random.seed(42)  # for reproducibility
     real_image_paths, fake_image_paths, mask_image_paths = get_data_paths(dataset_path=dataset_path)
     
     # train model with 30000 fake images and 3000 real images
-    real_image_paths = real_image_paths[:18000]
-    mask_image_paths = mask_image_paths[:18000]
-    fake_image_paths = fake_image_paths[:18000]
+    len_dataset = len(real_image_paths)
+    random_fake_paths = random.sample(fake_image_paths, k=len_dataset)
+    random_mask_paths = [mask_image_paths[fake_image_paths.index(path)] for path in random_fake_paths]
+    fake_image_paths = random_fake_paths
+    mask_image_paths = random_mask_paths
 
     # train test split
     train_real_image_paths, val_real_image_paths = train_test_split(real_image_paths, test_size=0.3, random_state=42)
