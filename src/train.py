@@ -110,6 +110,8 @@ def main():
             true_pred, num_image = fmd_v2.get_num_true_pred_images()
             true_preds += true_pred
             total += num_image
+        
+        print("---------------------------------")
             
         # eval
         fmd_v2.eval()
